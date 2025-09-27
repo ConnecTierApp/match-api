@@ -16,7 +16,7 @@ This project should stay lightweight for a hackathon demo, so the models only co
 ### Chunk
 - Small slice of a document used for vector search.
 - Fields: `id`, `document_id` (FK Document), `chunk_index`, `text`, `weaviate_vector_id` (string reference to the Weaviate object), `metadata` (JSONB for token counts, etc.), `created_at`.
-- Reasoning: Chunking keeps embeddings cheap and improves recall. Vectors now live in Weaviate, so the Django model only needs to remember which object to update or delete there.
+- Reasoning: Chunking keeps embeddings cheap and improves recall. Vectors now live in Weaviate, so the Django model only needs to remember which object to update or delete there. Chunks are generated asynchronously by a Celery task whenever a document is created.
 
 ## Matching Setup
 ### MatchingTemplate
@@ -43,7 +43,7 @@ This project should stay lightweight for a hackathon demo, so the models only co
 
 ## Data Flow Summary
 1. Create or import `Entity` records.
-2. Attach `Document`s with raw text; chunk them into `Chunk`s and persist vectors in Weaviate.
+2. Attach `Document`s with raw text; Celery chunking tasks split them into `Chunk`s and follow-up tasks embed each chunk into Weaviate.
 3. Define a `MatchingTemplate` describing how to score.
 4. Kick off a `MatchingJob` with a source entity and target pool.
 5. Produce `Match` records (and optional `MatchFeature`s) storing scores and explanations.

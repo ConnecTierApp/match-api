@@ -3,7 +3,6 @@ services:
     extends:
       service: postgres
       file: compose.yaml
-    image: postgres:16
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -19,6 +18,8 @@ services:
     command: ["./dev.sh"]
     volumes:
       - ./api:/app
+    environment:
+      DEBUG: "True"
 
   worker:
     extends:
@@ -27,6 +28,7 @@ services:
     volumes:
       - ./api:/app
     command: sh -c "pip install watchdog && watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A config worker -l info"
+
 
 volumes:
   pgdata:

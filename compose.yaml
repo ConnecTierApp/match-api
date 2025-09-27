@@ -34,9 +34,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      WEAVIATE_ENDPOINT:
-      WEAVIATE_API_KEY:
-      DJANGO_SECRET_KEY:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      WEAVIATE_ENDPOINT: ${WEAVIATE_ENDPOINT}
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
@@ -54,7 +55,23 @@ services:
       - redis
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=require
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=${POSTGRES_SSLMODE}
       REDIS_URL: redis://redis:6379/0
-      OPENAI_API_KEY:
-      DJANGO_SECRET_KEY:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      WEAVIATE_ENDPOINT: ${WEAVIATE_ENDPOINT}
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=https://api.match.connectier.app
+    domainname: match.connectier.app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: https://api.match.connectier.app

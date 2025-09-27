@@ -68,7 +68,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'core.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -179,17 +179,4 @@ CELERY_RESULT_BACKEND = REDIS_URL
 
 # CrewAI (no special settings needed for hello world)
 
-# CORS settings
-if DEBUG:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
-else:
-    CORS_ALLOWED_ORIGIN_REGEXES = [
-        r"^https:\/\/(.*\.)?defang\.app$",
-        r"^https:\/\/(.*\.)?connectier\.app$",
-        r"^https:\/\/(.*\.)?(.*\.)?connectier\.app$",
-    ]
+# CORS is now handled by our custom middleware in core.middleware.CorsMiddleware
