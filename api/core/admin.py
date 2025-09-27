@@ -4,19 +4,34 @@ from .models import (
     Document,
     DocumentChunk,
     Entity,
+    EntityType,
     Match,
     MatchFeature,
     MatchingJob,
     MatchingJobTarget,
     MatchingTemplate,
+    Workspace,
 )
+
+
+@admin.register(Workspace)
+class WorkspaceAdmin(admin.ModelAdmin):
+    list_display = ("slug", "name", "created_at", "updated_at")
+    search_fields = ("slug", "name")
+
+
+@admin.register(EntityType)
+class EntityTypeAdmin(admin.ModelAdmin):
+    list_display = ("slug", "workspace", "display_name", "created_at")
+    search_fields = ("slug", "display_name", "workspace__slug")
+    list_filter = ("workspace",)
 
 
 @admin.register(Entity)
 class EntityAdmin(admin.ModelAdmin):
-    list_display = ("name", "entity_type", "external_ref", "created_at")
-    search_fields = ("name", "entity_type", "external_ref")
-    list_filter = ("entity_type",)
+    list_display = ("name", "entity_type", "workspace", "external_ref", "created_at")
+    search_fields = ("name", "external_ref", "entity_type__slug", "workspace__slug")
+    list_filter = ("entity_type", "workspace")
 
 
 @admin.register(Document)
@@ -35,14 +50,26 @@ class DocumentChunkAdmin(admin.ModelAdmin):
 
 @admin.register(MatchingTemplate)
 class MatchingTemplateAdmin(admin.ModelAdmin):
-    list_display = ("name", "source_entity_type", "target_entity_type", "created_at")
-    search_fields = ("name", "source_entity_type", "target_entity_type")
+    list_display = (
+        "name",
+        "workspace",
+        "source_entity_type",
+        "target_entity_type",
+        "created_at",
+    )
+    search_fields = (
+        "name",
+        "workspace__slug",
+        "source_entity_type__slug",
+        "target_entity_type__slug",
+    )
+    list_filter = ("workspace", "source_entity_type", "target_entity_type")
 
 
 @admin.register(MatchingJob)
 class MatchingJobAdmin(admin.ModelAdmin):
-    list_display = ("id", "template", "source_entity", "status", "created_at")
-    list_filter = ("status", "created_at")
+    list_display = ("id", "workspace", "template", "source_entity", "status", "created_at")
+    list_filter = ("status", "workspace", "created_at")
     search_fields = ("id",)
 
 

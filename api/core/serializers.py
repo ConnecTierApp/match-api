@@ -4,15 +4,61 @@ from .models import (
     Document,
     DocumentChunk,
     Entity,
+    EntityType,
     Match,
     MatchFeature,
     MatchingJob,
     MatchingJobTarget,
     MatchingTemplate,
+    Workspace,
 )
 
 
+class WorkspaceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Workspace
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "description",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class EntityTypeSerializer(serializers.ModelSerializer):
+    workspace = serializers.SlugRelatedField(
+        slug_field="slug",
+        queryset=Workspace.objects.all(),
+    )
+
+    class Meta:
+        model = EntityType
+        fields = [
+            "id",
+            "slug",
+            "display_name",
+            "description",
+            "metadata",
+            "workspace",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
 class EntitySerializer(serializers.ModelSerializer):
+    entity_type = serializers.SlugRelatedField(
+        queryset=EntityType.objects.all(),
+        slug_field="slug",
+    )
+    workspace = serializers.SlugRelatedField(
+        slug_field="slug",
+        read_only=True,
+    )
+
     class Meta:
         model = Entity
         fields = [
@@ -21,6 +67,7 @@ class EntitySerializer(serializers.ModelSerializer):
             "entity_type",
             "name",
             "metadata",
+            "workspace",
             "created_at",
             "updated_at",
         ]
@@ -82,6 +129,19 @@ class DocumentChunkSerializer(serializers.ModelSerializer):
 
 
 class MatchingTemplateSerializer(serializers.ModelSerializer):
+    source_entity_type = serializers.SlugRelatedField(
+        queryset=EntityType.objects.all(),
+        slug_field="slug",
+    )
+    target_entity_type = serializers.SlugRelatedField(
+        queryset=EntityType.objects.all(),
+        slug_field="slug",
+    )
+    workspace = serializers.SlugRelatedField(
+        slug_field="slug",
+        read_only=True,
+    )
+
     class Meta:
         model = MatchingTemplate
         fields = [
@@ -91,6 +151,7 @@ class MatchingTemplateSerializer(serializers.ModelSerializer):
             "source_entity_type",
             "target_entity_type",
             "config",
+            "workspace",
             "created_at",
             "updated_at",
         ]
@@ -98,6 +159,11 @@ class MatchingTemplateSerializer(serializers.ModelSerializer):
 
 
 class MatchingJobSerializer(serializers.ModelSerializer):
+    workspace = serializers.SlugRelatedField(
+        slug_field="slug",
+        read_only=True,
+    )
+
     class Meta:
         model = MatchingJob
         fields = [
@@ -109,6 +175,7 @@ class MatchingJobSerializer(serializers.ModelSerializer):
             "started_at",
             "finished_at",
             "error_message",
+            "workspace",
             "created_at",
             "updated_at",
         ]

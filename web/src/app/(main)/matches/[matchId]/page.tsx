@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useJob, useMatch, useMatchMutations } from "@/hooks/use-matching";
+import { useJob } from "@/modules/jobs/hooks/use-job";
+import { useMatch } from "@/modules/matches/hooks/use-match";
+import { useMatchMutations } from "@/modules/matches/hooks/use-match-mutations";
 import { MatchUpdate } from "@/types/matching";
 
 export default function MatchDetailPage() {

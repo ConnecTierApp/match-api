@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import DocumentChunk
+from .models import DocumentChunk, EntityType, Workspace
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -47,6 +47,21 @@ class CoreCrudFlowTests(APITestCase):
         self.mock_get_weaviate.return_value = self.weaviate_client
 
         self.mock_fetch_markdown.return_value = "# Auto Fetched Body"
+
+        self.workspace, _ = Workspace.objects.get_or_create(
+            slug="default",
+            defaults={"name": "Default Workspace"},
+        )
+        self.candidate_type, _ = EntityType.objects.get_or_create(
+            workspace=self.workspace,
+            slug="candidate",
+            defaults={"display_name": "Candidate"},
+        )
+        self.job_type, _ = EntityType.objects.get_or_create(
+            workspace=self.workspace,
+            slug="job",
+            defaults={"display_name": "Job"},
+        )
 
     def test_full_crud_flow(self):
         entity_payload = {

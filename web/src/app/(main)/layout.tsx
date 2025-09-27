@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GitMerge, Layers2, ListChecks, PlusCircle, Sparkles } from "lucide-react";
+import { Boxes, GitMerge, Layers2, ListChecks, PlusCircle, Sparkles } from "lucide-react";
 import { ReactNode, useMemo } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MatchingProvider } from "@/providers/mock-matching-provider";
-import { useMatchingStats } from "@/hooks/use-matching";
+
+import { useMatchingStats } from "@/modules/stats/hooks/use-matching-stats";
 
 const navItems = [
+  { label: "Entities", href: "/entities" },
   { label: "Templates", href: "/templates" },
   { label: "Jobs", href: "/jobs" },
   { label: "Matches", href: "/matches" },
@@ -19,7 +20,7 @@ const navItems = [
 
 function LayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { templates, jobs, totalAutoApproved } = useMatchingStats();
+  const { templates, jobs, entities, totalAutoApproved } = useMatchingStats();
 
   const metrics = useMemo(
     () => [
@@ -28,6 +29,12 @@ function LayoutShell({ children }: { children: ReactNode }) {
         value: templates.length,
         description: "Reusable logic blocks",
         icon: <GitMerge className="h-4 w-4 text-muted-foreground" />,
+      },
+      {
+        label: "Entities managed",
+        value: entities.length,
+        description: "Profiles, teams, talent pools",
+        icon: <Boxes className="h-4 w-4 text-muted-foreground" />,
       },
       {
         label: "Jobs running",
@@ -42,7 +49,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         icon: <ListChecks className="h-4 w-4 text-muted-foreground" />,
       },
     ],
-    [jobs.length, templates.length, totalAutoApproved],
+    [entities.length, jobs.length, templates.length, totalAutoApproved],
   );
 
   return (
@@ -66,15 +73,20 @@ function LayoutShell({ children }: { children: ReactNode }) {
                 Craft reusable blueprints for matching logic, spin up jobs against fresh entity sets, and monitor the quality of matches without juggling spreadsheets.
               </p>
             </div>
-            <Button asChild size="lg" className="gap-2 whitespace-nowrap">
-              <Link href="/templates#create-template">
-                <PlusCircle className="h-4 w-4" /> New template
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="lg" className="gap-2 whitespace-nowrap">
+                <Link href="/entities#create-entity">
+                  <PlusCircle className="h-4 w-4" /> New entity
+                </Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg" className="gap-2 whitespace-nowrap">
+                <Link href="/templates#create-template">New template</Link>
+              </Button>
+            </div>
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {metrics.map((metric) => (
             <Card key={metric.label}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -122,9 +134,5 @@ function LayoutShell({ children }: { children: ReactNode }) {
 }
 
 export default function MainLayout({ children }: { children: ReactNode }) {
-  return (
-    <MatchingProvider>
-      <LayoutShell>{children}</LayoutShell>
-    </MatchingProvider>
-  );
+  return <LayoutShell>{children}</LayoutShell>;
 }

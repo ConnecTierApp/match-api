@@ -107,3 +107,7 @@ This structure promotes:
 
 ## Environment Variables
 We use env files or defang.io config (in prod) to manage environment variables. NEVER, EVER update defang config, or update the .env.local file. 
+
+
+## Context Log
+Keep a running log of things you've worked on while completing a task in the `.agent-context` directory. Put the log in an md file named after the task you're working on so that you can check it later if needed. Append to the file regularly.

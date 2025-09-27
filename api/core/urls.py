@@ -3,17 +3,21 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     DocumentChunkViewSet,
     DocumentViewSet,
+    EntityTypeViewSet,
     EntityViewSet,
     MatchFeatureViewSet,
     MatchViewSet,
     MatchingJobTargetViewSet,
     MatchingJobViewSet,
     MatchingTemplateViewSet,
+    WorkspaceViewSet,
 )
 
 app_name = "core"
 
 router = DefaultRouter()
+router.register(r"workspaces", WorkspaceViewSet)
+router.register(r"entity-types", EntityTypeViewSet)
 router.register(r"entities", EntityViewSet)
 router.register(r"documents", DocumentViewSet)
 router.register(r"chunks", DocumentChunkViewSet)

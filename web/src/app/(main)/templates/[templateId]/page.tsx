@@ -20,7 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useJobs, useMatches, useTemplate } from "@/hooks/use-matching";
+import { useJobs } from "@/modules/jobs/hooks/use-jobs";
+import { useMatches } from "@/modules/matches/hooks/use-matches";
+import { useTemplate } from "@/modules/templates/hooks/use-template";
 
 export default function TemplateDetailPage() {
   const params = useParams<{ templateId: string }>();

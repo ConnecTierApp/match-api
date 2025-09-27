@@ -5,21 +5,25 @@ from .models import (
     Document,
     DocumentChunk,
     Entity,
+    EntityType,
     Match,
     MatchFeature,
     MatchingJob,
     MatchingJobTarget,
     MatchingTemplate,
+    Workspace,
 )
 from .serializers import (
     DocumentChunkSerializer,
     DocumentSerializer,
     EntitySerializer,
+    EntityTypeSerializer,
     MatchFeatureSerializer,
     MatchSerializer,
     MatchingJobSerializer,
     MatchingJobTargetSerializer,
     MatchingTemplateSerializer,
+    WorkspaceSerializer,
 )
 
 
@@ -29,8 +33,26 @@ def home(_request):
     return JsonResponse({"status": "ok"})
 
 
+class WorkspaceViewSet(viewsets.ModelViewSet):
+    queryset = Workspace.objects.all().order_by("slug")
+    serializer_class = WorkspaceSerializer
+
+
+class EntityTypeViewSet(viewsets.ModelViewSet):
+    queryset = (
+        EntityType.objects.select_related("workspace")
+        .all()
+        .order_by("slug")
+    )
+    serializer_class = EntityTypeSerializer
+
+
 class EntityViewSet(viewsets.ModelViewSet):
-    queryset = Entity.objects.all().order_by("-created_at")
+    queryset = (
+        Entity.objects.select_related("workspace", "entity_type")
+        .all()
+        .order_by("-created_at")
+    )
     serializer_class = EntitySerializer
 
 
@@ -45,12 +67,29 @@ class DocumentChunkViewSet(viewsets.ModelViewSet):
 
 
 class MatchingTemplateViewSet(viewsets.ModelViewSet):
-    queryset = MatchingTemplate.objects.all().order_by("name")
+    queryset = (
+        MatchingTemplate.objects.select_related(
+            "workspace",
+            "source_entity_type",
+            "target_entity_type",
+        )
+        .all()
+        .order_by("name")
+    )
     serializer_class = MatchingTemplateSerializer
 
 
 class MatchingJobViewSet(viewsets.ModelViewSet):
-    queryset = MatchingJob.objects.select_related("template", "source_entity").all().order_by("-created_at")
+    queryset = (
+        MatchingJob.objects.select_related(
+            "workspace",
+            "template",
+            "template__workspace",
+            "source_entity",
+        )
+        .all()
+        .order_by("-created_at")
+    )
     serializer_class = MatchingJobSerializer
 
 

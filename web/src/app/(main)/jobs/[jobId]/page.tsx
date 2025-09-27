@@ -21,12 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useJob,
-  useJobMutations,
-  useMatchesByJob,
-  useTemplate,
-} from "@/hooks/use-matching";
+import { useJob } from "@/modules/jobs/hooks/use-job";
+import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
+import { useMatchesByJob } from "@/modules/matches/hooks/use-matches-by-job";
+import { useTemplate } from "@/modules/templates/hooks/use-template";
 
 export default function JobDetailPage() {
   const params = useParams<{ jobId: string }>();
@@ -98,6 +96,9 @@ export default function JobDetailPage() {
               "Template removed"
             )}
           </CardDescription>
+          <div className="text-sm text-muted-foreground">
+            Last updated {job.lastUpdated}
+          </div>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <Badge variant="outline" className="uppercase tracking-wide">
@@ -112,6 +113,9 @@ export default function JobDetailPage() {
           </span>
           {job.notes ? (
             <span className="italic text-muted-foreground/80">“{job.notes}”</span>
+          ) : null}
+          {job.errorMessage ? (
+            <span className="text-destructive">Error: {job.errorMessage}</span>
           ) : null}
         </CardContent>
       </Card>

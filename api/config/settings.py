@@ -42,7 +42,8 @@ def get_private_ips():
 ALLOWED_HOSTS = [
     '.defang.app',
     'localhost',
-    '*', # TODO: REMOVE THIS WHEN GOING TO PRODUCTION
+    'match.connectier.app',
+    'api.match.connectier.app',
 ] # Add your own domain name
 
 ALLOWED_HOSTS += get_private_ips() # Add private IPs so the health check can pass
