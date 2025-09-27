@@ -2,6 +2,8 @@
 
 ## Project Structure & Module Organization
 - Root services are orchestrated through `compose.local.yaml`; always work inside those containers.
+- Vector storage runs on Weaviate Cloud—set the URL/API key in `.env.local` and never add a local Weaviate container. Always use the `WEAVIATE_ENDPOINT` environment variable name (do not rename it to `WEAVIATE_URL`).
+- When wiring OpenAI settings in compose files, only include `OPENAI_API_KEY`; skip optional variables like `OPENAI_API_BASE` or `OPENAI_ORGANIZATION` unless explicitly required.
 - Django app lives in `api/`, with configuration under `api/config/` and domain code in `api/core/` (models, tasks, tests).
 - Reusable docs and design notes sit in `docs/`; add new guides there to keep the root uncluttered.
 
@@ -80,16 +82,16 @@ This structure promotes:
 - **Scalability**: Structure supports growth without reorganization
 
 ## Build, Test, and Development Commands
-- Start the full stack: `docker compose -f compose.local.yaml up --build`. This launches Postgres (with pgvector), Redis, API, worker, and model mocks.
-- Run Django management commands: `docker compose -f compose.local.yaml run --rm api python manage.py migrate` (replace `migrate` as needed).
-- Execute the Celery worker locally: already included in the stack, but you can restart via `docker compose -f compose.local.yaml restart worker` when code changes.
-- Run test suite: `docker compose -f compose.local.yaml run --rm api python manage.py test`.
+- Start the full stack: `docker compose --env-file .env.local -f ./compose.local.yaml up --build`. This launches Postgres, Redis, API, and worker processes.
+- Run Django management commands: `docker compose --env-file .env.local -f ./compose.local.yaml run --rm api python manage.py migrate` (replace `migrate` as needed).
+- Execute the Celery worker locally: already included in the stack, but you can restart via `docker compose --env-file .env.local -f ./compose.local.yaml restart worker` when code changes.
+- Run test suite: `docker compose --env-file .env.local -f ./compose.local.yaml run --rm api python manage.py test`.
 - For development, you do not need to use docker compose for the ./web directory (and ONLY the ./web directory). Just use normal npm commands, etc.
 
 ## Coding Style & Naming Conventions
 - Python code uses 4-space indentation, `snake_case` for variables/functions, and `CamelCase` for classes.
 - Prefer Django conventions: keep business logic in `api/core/` apps and wire routes through `config/urls.py`.
-- Adhere to PEP 8; if you need auto-formatting, install `black` and `isort` inside the API container and run them via Docker (`docker compose -f compose.local.yaml run --rm api black core`).
+- Adhere to PEP 8; if you need auto-formatting, install `black` and `isort` inside the API container and run them via Docker (`docker compose --env-file .env.local -f ./compose.local.yaml run --rm api black core`).
 - Environment variables belong in Compose files or `.env` consumed by Docker; avoid committing secrets.
 
 ## Testing Guidelines
@@ -101,3 +103,6 @@ This structure promotes:
 - Follow short, imperative commit messages (`Add entity chunking task`). The existing history is sparse; keep it consistent moving forward.
 - Scope PRs tightly, include context on matching flows touched, and link any hackathon tickets or issue IDs.
 - Attach screenshots or brief logs if the change affects API responses or agent runs so reviewers can verify quickly.
+
+## Environment Variables
+We use env files or defang.io config (in prod) to manage environment variables. NEVER, EVER update defang config, or update the .env.local file. 
