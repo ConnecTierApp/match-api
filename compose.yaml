@@ -17,11 +17,12 @@ services:
         target: 6379
         published: 6379
 
-  app:
+  api:
     build:
-      context: ./app
+      context: ./api
       dockerfile: Dockerfile
     command: ./run.sh
+    domainname: api.match.connectier.app
     ports:
       - "8000:8000"
     depends_on:
@@ -43,7 +44,7 @@ services:
 
   worker:
     build:
-      context: ./app
+      context: ./api
       dockerfile: Dockerfile
     command: celery -A config worker -l info
     depends_on:

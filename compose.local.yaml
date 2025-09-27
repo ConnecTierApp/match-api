@@ -14,23 +14,23 @@ services:
       service: redis
       file: compose.yaml
 
-  app:
+  api:
     extends:
-      service: app
+      service: api
       file: compose.yaml
     command: ["./dev.sh"]
     environment:
       DATABASE_URL: postgres://postgres:password@postgres:5432/postgres
       DJANGO_SECRET_KEY: 5k6qi_gzy65bz2soxl6k(rsrw)0z3ws!zmjzsbe+wkp1ovfayg
     volumes:
-      - ./app:/app
+      - ./api:/app
 
   worker:
     extends:
       service: worker
       file: compose.yaml
     volumes:
-      - ./app:/app
+      - ./api:/app
     command: sh -c "pip install watchdog && watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A config worker -l info"
     environment:
       DATABASE_URL: postgres://postgres:password@postgres:5432/postgres
