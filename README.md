@@ -2,7 +2,7 @@
 
 [![1-click-deploy](https://raw.githubusercontent.com/DefangLabs/defang-assets/main/Logos/Buttons/SVG/deploy-with-defang.svg)](https://portal.defang.dev/redirect?url=https%3A%2F%2Fgithub.com%2Fnew%3Ftemplate_name%3Dsample-crew-django-redis-postgres-template%26template_owner%3DDefangSamples)
 
-This sample shows how to use Crew.ai with a Django application. It provides a simple web interface that allows users to input text and receive a summary of the text in real-time using Django Channels with a Redis broker. It uses Celery to handle the Crew.ai tasks in the background with Redis as a broker. It uses Postgres as the database for Django.
+This sample shows how to use Crew.ai with a Django application. It provides a simple web interface that allows users to input text and receive a summary of the text in real-time using Django Channels with a Redis broker. It uses Celery to handle the Crew.ai tasks in the background with Redis as a broker. Application data is stored in Postgres while embeddings live in Weaviate, and OpenAI powers both chat completions and embeddings.
 
 ## Prerequisites
 
@@ -30,18 +30,32 @@ The password for the Postgres database.
 defang config set POSTGRES_PASSWORD
 ```
 
-### `SSL_MODE`
-
-The SSL mode for the Postgres database.
-```bash
-defang config set SSL_MODE
-```
-
 ### `DJANGO_SECRET_KEY`
 
 The secret key for the Django application.
 ```bash
 defang config set DJANGO_SECRET_KEY
+```
+
+### `OPENAI_API_KEY`
+
+API key used for OpenAI chat and embedding requests.
+```bash
+defang config set OPENAI_API_KEY
+```
+
+### `WEAVIATE_ENDPOINT`
+
+HTTP endpoint for your Weaviate cluster. Local development defaults to `http://weaviate:8080`.
+```bash
+defang config set WEAVIATE_ENDPOINT
+```
+
+### `WEAVIATE_API_KEY` *(optional)*
+
+Provide this if the Weaviate instance requires authentication.
+```bash
+defang config set WEAVIATE_API_KEY
 ```
 
 ## Deployment

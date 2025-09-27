@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'core',
+    'rest_framework',
     'corsheaders',
 ]
 
@@ -190,4 +191,3 @@ else:
     CORS_ALLOWED_ORIGIN_REGEXES = [
         r"^https:\/\/(.*\.)?defang\.app$",
     ]
-

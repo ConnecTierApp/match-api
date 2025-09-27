@@ -1,36 +1,34 @@
-#!/bin/sh
+#!/bin/bash
 
-# Wait for the database to be ready using psycopg 3 and dj-database-url
-until python3 -c '
-import os, sys
-import psycopg
-import dj_database_url
-
-url = os.environ.get("DATABASE_URL")
-if not url:
-    sys.exit("DATABASE_URL not set")
-
-try:
-    cfg = dj_database_url.parse(url)
-    with psycopg.connect(
-        dbname=cfg["NAME"],
-        user=cfg["USER"],
-        password=cfg["PASSWORD"],
-        host=cfg["HOST"],
-        port=cfg["PORT"] or 5432,
-    ) as conn:
-        pass  # Successful connection
-except psycopg.OperationalError:
-    sys.exit(1)
-'
-do
-  echo "Waiting for database to be ready..."
+# Wait for the database to be ready
+echo "Waiting for database to be ready..."
+until pg_isready -h postgres -p 5432 -U postgres; do
+  echo "Database not ready, waiting..."
   sleep 2
 done
 
+echo "Database is ready! Running migrations..."
+
+echo "DB: ${DATABASE_URL}"
+
 # Run migrations
 python manage.py migrate --noinput
+if [ $? -ne 0 ]; then
+    echo "Migration failed!"
+    exit 1
+fi
+
+echo "Creating initial superuser..."
 python manage.py create_initial_superuser
+if [ $? -ne 0 ]; then
+    echo "Failed to create superuser!"
+    exit 1
+fi
+
+echo "Collecting static files..." # shouldn't be necessary
+python manage.py collectstatic --noinput
+
+echo "Starting Django development server..."
 
 # Note: For Django Channels and ASGI support, you should use an ASGI server like Daphne or Uvicorn.
 # The normal runserver is fine for basic development and will use ASGI if available,

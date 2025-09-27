@@ -10,6 +10,7 @@
 - Run Django management commands: `docker compose -f compose.local.yaml run --rm api python manage.py migrate` (replace `migrate` as needed).
 - Execute the Celery worker locally: already included in the stack, but you can restart via `docker compose -f compose.local.yaml restart worker` when code changes.
 - Run test suite: `docker compose -f compose.local.yaml run --rm api python manage.py test`.
+- For development, you do not need to use docker compose for the ./web directory (and ONLY the ./web directory). Just use normal npm commands, etc.
 
 ## Coding Style & Naming Conventions
 - Python code uses 4-space indentation, `snake_case` for variables/functions, and `CamelCase` for classes.
