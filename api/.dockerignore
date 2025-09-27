@@ -25,3 +25,52 @@ defang
 defang.exe
 # Ignore our project-level state
 .defang
+
+# Python specific ignores
+.venv
+venv/
+env/
+ENV/
+.env
+.env.local
+.env.*.local
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Django specific ignores
+staticfiles/
+media/
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+
+# Documentation
+docs/_build/

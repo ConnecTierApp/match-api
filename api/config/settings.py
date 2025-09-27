@@ -190,4 +190,6 @@ if DEBUG:
 else:
     CORS_ALLOWED_ORIGIN_REGEXES = [
         r"^https:\/\/(.*\.)?defang\.app$",
+        r"^https:\/\/(.*\.)?connectier\.app$",
+        r"^https:\/\/(.*\.)?(.*\.)?connectier\.app$",
     ]

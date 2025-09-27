@@ -1,12 +1,44 @@
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from .models import DocumentChunk
 
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class CoreCrudFlowTests(APITestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
+
+        self.embedding_patcher = patch("core.tasks.get_embedding_client")
+        self.weaviate_patcher = patch("core.tasks.get_weaviate_client")
+        self.mock_get_embedding = self.embedding_patcher.start()
+        self.mock_get_weaviate = self.weaviate_patcher.start()
+        self.addCleanup(self.embedding_patcher.stop)
+        self.addCleanup(self.weaviate_patcher.stop)
+
+        self.embedding_client = MagicMock()
+        self.embedding_client.embeddings.create.return_value = SimpleNamespace(
+            data=[SimpleNamespace(embedding=[0.1, 0.2, 0.3])]
+        )
+        self.mock_get_embedding.return_value = self.embedding_client
+
+        self.weaviate_client = MagicMock()
+        self.weaviate_client.collections = MagicMock()
+        self.weaviate_client.collections.exists.return_value = False
+        self.weaviate_client.collections.create = MagicMock()
+        
+        # Mock collection object
+        self.mock_collection = MagicMock()
+        self.mock_collection.data = MagicMock()
+        self.weaviate_client.collections.get.return_value = self.mock_collection
+        
+        self.mock_get_weaviate.return_value = self.weaviate_client
 
     def test_full_crud_flow(self):
         entity_payload = {
@@ -52,19 +84,14 @@ class CoreCrudFlowTests(APITestCase):
         self.assertEqual(document_response.status_code, status.HTTP_201_CREATED)
         document_id = document_response.data["id"]
 
-        chunk_payload = {
-            "document": document_id,
-            "chunk_index": 0,
-            "text": "Jane has 10 years of experience.",
-            "weaviate_vector_id": "vec-1",
-            "metadata": {"tokens": 32},
-        }
-        chunk_response = self.client.post(
-            reverse("core:documentchunk-list"),
-            data=chunk_payload,
-            format="json",
-        )
-        self.assertEqual(chunk_response.status_code, status.HTTP_201_CREATED)
+        chunks = DocumentChunk.objects.filter(document_id=document_id)
+        self.assertEqual(chunks.count(), 1)
+        chunk = chunks.first()
+        self.assertEqual(chunk.chunk_index, 0)
+        self.assertEqual(chunk.weaviate_vector_id, str(chunk.id))
+        self.embedding_client.embeddings.create.assert_called_once()
+        self.weaviate_client.collections.create.assert_called_once()
+        self.mock_collection.data.insert.assert_called_once()
 
         template_payload = {
             "name": "Candidate to Job",
