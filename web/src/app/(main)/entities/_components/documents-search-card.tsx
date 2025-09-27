@@ -83,7 +83,7 @@ export function DocumentsSearchCard() {
           ) : null}
 
           {results.map(({ entity, document }) => (
-            <div key={document.id} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+            <div key={document.id} className="rounded-lg border border-border/70 bg-muted/20 p-4 flex flex-col">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <FileText className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function DocumentsSearchCard() {
                 </div>
               </div>
               <h3 className="mt-2 text-base font-semibold text-foreground">{document.title}</h3>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{document.content}</p>
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground w-full overflow-hidden">{document.content}</p>
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                 <div>
                   Linked to{" "}

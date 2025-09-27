@@ -38,6 +38,7 @@ services:
       WEAVIATE_ENDPOINT: ${WEAVIATE_ENDPOINT}
       WEAVIATE_API_KEY: ${WEAVIATE_API_KEY}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      LIGHTPANDA_API_KEY: ${LIGHTPANDA_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s

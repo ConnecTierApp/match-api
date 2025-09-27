@@ -11,6 +11,15 @@ export type JobStatus = "Queued" | "Scoring" | "Completed" | "Failed";
 
 export type MatchStatus = "manual_review" | "auto_approved" | "flagged";
 
+export interface Workspace {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EntityDocument {
   id: string;
   title: string;
