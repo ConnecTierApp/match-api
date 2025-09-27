@@ -5,6 +5,80 @@
 - Django app lives in `api/`, with configuration under `api/config/` and domain code in `api/core/` (models, tasks, tests).
 - Reusable docs and design notes sit in `docs/`; add new guides there to keep the root uncluttered.
 
+### Web Directory Organization (Next.js)
+The `web/` directory follows a structured approach to organize Next.js components, hooks, and shared functionality:
+
+#### Page-Level Organization
+- Each page should have its own `components/`, `hooks/`, and `lib/` folders when needed
+- Structure: `app/[page]/components/my-component/my-component.tsx`
+- Tests are co-located: `app/[page]/components/my-component/my-component.test.tsx`
+
+#### Component Architecture
+- **Simple components**: Single file in component directory
+  ```
+  app/dashboard/components/
+  ├── user-profile/
+  │   ├── user-profile.tsx
+  │   └── user-profile.test.tsx
+  ```
+
+- **Complex components**: Include child `components/` directory with same structure
+  ```
+  app/dashboard/components/
+  ├── data-table/
+  │   ├── data-table.tsx
+  │   ├── data-table.test.tsx
+  │   ├── hooks/
+  │   │   └── use-table-sorting/
+  │   │       ├── use-table-sorting.ts
+  │   │       └── use-table-sorting.test.ts
+  │   └── components/
+  │       ├── table-header/
+  │       │   ├── table-header.tsx
+  │       │   └── table-header.test.tsx
+  │       └── table-row/
+  │           ├── table-row.tsx
+  │           └── table-row.test.tsx
+  ```
+
+#### Hook Organization
+- Component-specific hooks live in the component's `hooks/` directory
+- Child components can import hooks from parent components, but not vice-versa
+- This maintains a clear dependency hierarchy and prevents circular imports
+
+#### Shared Functionality
+- Cross-cutting concerns live in `web/src/modules/` organized by domain
+- Structure: `web/src/modules/[domain]/components/` or `web/src/modules/[domain]/hooks/`
+- Examples:
+  ```
+  web/src/modules/
+  ├── matching-jobs/
+  │   ├── components/
+  │   │   └── job-card/
+  │   │       ├── job-card.tsx
+  │   │       └── job-card.test.tsx
+  │   └── hooks/
+  │       └── use-job-matching/
+  │           ├── use-job-matching.ts
+  │           └── use-job-matching.test.ts
+  └── user-management/
+      ├── components/
+      └── hooks/
+  ```
+
+#### Naming Conventions
+- **All files and directories**: Use `kebab-case` consistently
+- **Component files**: Match their directory name (`user-profile/user-profile.tsx`)
+- **Hook files**: Descriptive names following React conventions (`use-table-sorting.ts`)
+- **Test files**: Same name as source file with `.test` suffix
+
+This structure promotes:
+- **Modularity**: Clear separation of concerns
+- **Testability**: Tests live alongside code
+- **Reusability**: Shared modules prevent duplication
+- **Maintainability**: Consistent patterns across the codebase
+- **Scalability**: Structure supports growth without reorganization
+
 ## Build, Test, and Development Commands
 - Start the full stack: `docker compose -f compose.local.yaml up --build`. This launches Postgres (with pgvector), Redis, API, worker, and model mocks.
 - Run Django management commands: `docker compose -f compose.local.yaml run --rm api python manage.py migrate` (replace `migrate` as needed).
