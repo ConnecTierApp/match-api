@@ -1,8 +1,22 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from .models import Document, DocumentChunk
 from .tasks import chunk_document_task, embed_document_chunk_task
+from .lightpanda import LightpandaError
+from .services.document_ingestion import ensure_document_body
+
+@receiver(pre_save, sender=Document)
+def populate_body_from_source(sender, instance: Document, **_: object) -> None:
+    if instance.body and instance.body.strip():
+        return
+
+    try:
+        ensure_document_body(instance, raise_on_failure=True)
+    except LightpandaError as exc:
+        # Re-raise to prevent persisting empty bodies when a source is supplied.
+        if not (instance.body and instance.body.strip()):
+            raise
 
 
 @receiver(post_save, sender=Document)

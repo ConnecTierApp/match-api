@@ -38,7 +38,7 @@ class Document(BaseModel):
     entity = models.ForeignKey(Entity, related_name="documents", on_delete=models.CASCADE)
     source = models.CharField(max_length=128, blank=True)
     title = models.CharField(max_length=255, blank=True)
-    body = models.TextField()
+    body = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:

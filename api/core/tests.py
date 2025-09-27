@@ -17,10 +17,20 @@ class CoreCrudFlowTests(APITestCase):
 
         self.embedding_patcher = patch("core.tasks.get_embedding_client")
         self.weaviate_patcher = patch("core.tasks.get_weaviate_client")
+        self.ensure_collection_patcher = patch(
+            "core.tasks._ensure_weaviate_collection_for_document_chunks"
+        )
+        self.lightpanda_patcher = patch(
+            "core.services.document_ingestion.fetch_markdown"
+        )
         self.mock_get_embedding = self.embedding_patcher.start()
         self.mock_get_weaviate = self.weaviate_patcher.start()
+        self.mock_ensure_collection = self.ensure_collection_patcher.start()
+        self.mock_fetch_markdown = self.lightpanda_patcher.start()
         self.addCleanup(self.embedding_patcher.stop)
         self.addCleanup(self.weaviate_patcher.stop)
+        self.addCleanup(self.ensure_collection_patcher.stop)
+        self.addCleanup(self.lightpanda_patcher.stop)
 
         self.embedding_client = MagicMock()
         self.embedding_client.embeddings.create.return_value = SimpleNamespace(
@@ -29,16 +39,14 @@ class CoreCrudFlowTests(APITestCase):
         self.mock_get_embedding.return_value = self.embedding_client
 
         self.weaviate_client = MagicMock()
-        self.weaviate_client.collections = MagicMock()
-        self.weaviate_client.collections.exists.return_value = False
-        self.weaviate_client.collections.create = MagicMock()
-        
-        # Mock collection object
         self.mock_collection = MagicMock()
-        self.mock_collection.data = MagicMock()
+        self.mock_collection.data.insert = MagicMock()
+        self.mock_collection.data.replace = MagicMock()
+        self.weaviate_client.collections = MagicMock()
         self.weaviate_client.collections.get.return_value = self.mock_collection
-        
         self.mock_get_weaviate.return_value = self.weaviate_client
+
+        self.mock_fetch_markdown.return_value = "# Auto Fetched Body"
 
     def test_full_crud_flow(self):
         entity_payload = {
@@ -73,7 +81,6 @@ class CoreCrudFlowTests(APITestCase):
             "entity": source_entity_id,
             "source": "upload",
             "title": "Resume",
-            "body": "Jane is a great engineer.",
             "metadata": {"pages": 1},
         }
         document_response = self.client.post(
@@ -83,6 +90,7 @@ class CoreCrudFlowTests(APITestCase):
         )
         self.assertEqual(document_response.status_code, status.HTTP_201_CREATED)
         document_id = document_response.data["id"]
+        self.mock_fetch_markdown.assert_called_once_with("upload")
 
         chunks = DocumentChunk.objects.filter(document_id=document_id)
         self.assertEqual(chunks.count(), 1)
@@ -90,7 +98,7 @@ class CoreCrudFlowTests(APITestCase):
         self.assertEqual(chunk.chunk_index, 0)
         self.assertEqual(chunk.weaviate_vector_id, str(chunk.id))
         self.embedding_client.embeddings.create.assert_called_once()
-        self.weaviate_client.collections.create.assert_called_once()
+        self.mock_ensure_collection.assert_called_once_with(self.weaviate_client)
         self.mock_collection.data.insert.assert_called_once()
 
         template_payload = {

@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'channels',
     'core',
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
 ]
 
@@ -180,3 +181,14 @@ CELERY_RESULT_BACKEND = REDIS_URL
 # CrewAI (no special settings needed for hello world)
 
 # CORS is now handled by our custom middleware in core.middleware.CorsMiddleware
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Match API",
+    "DESCRIPTION": "OpenAPI schema for the core matching service.",
+    "VERSION": "1.0.0",
+}

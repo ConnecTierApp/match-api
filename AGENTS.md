@@ -5,6 +5,7 @@
 - Vector storage runs on Weaviate Cloud—set the URL/API key in `.env.local` and never add a local Weaviate container. Always use the `WEAVIATE_ENDPOINT` environment variable name (do not rename it to `WEAVIATE_URL`).
 - When wiring OpenAI settings in compose files, only include `OPENAI_API_KEY`; skip optional variables like `OPENAI_API_BASE` or `OPENAI_ORGANIZATION` unless explicitly required.
 - Django app lives in `api/`, with configuration under `api/config/` and domain code in `api/core/` (models, tasks, tests).
+- Lightpanda scraping lives in `core/lightpanda.py`; use `populate_document_body` instead of bespoke scraping when you need markdown.
 - Reusable docs and design notes sit in `docs/`; add new guides there to keep the root uncluttered.
 
 ### Web Directory Organization (Next.js)

@@ -11,7 +11,7 @@ This project should stay lightweight for a hackathon demo, so the models only co
 ### Document
 - A text document describing an entity (resume, job description, syllabus).
 - Fields: `id`, `entity_id` (FK Entity), `source` (where we got it), `title`, `body`, `metadata` (JSONB), `created_at`.
-- Reasoning: Separating documents from entities lets us store multiple descriptions per entity and reprocess them when embeddings improve.
+- Reasoning: Separating documents from entities lets us store multiple descriptions per entity and reprocess them when embeddings improve. When `body` is missing but `source` is provided we scrape markdown via Lightpanda before persisting.
 
 ### Chunk
 - Small slice of a document used for vector search.

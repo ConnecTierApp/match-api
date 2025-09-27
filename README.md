@@ -70,7 +70,7 @@ Define the following in `.env.local` before starting the services:
 - `OPENAI_API_KEY` – used by the embedding pipeline (and future LLM calls).
 - `WEAVIATE_ENDPOINT` – domain of your Weaviate Cloud cluster (no protocol).
 - `WEAVIATE_API_KEY` – optional API key for Weaviate.
-- `WEAVIATE_BEARER_TOKEN` – optional bearer token if your cluster requires SSO headers.
+- `LIGHTPANDA_API_KEY` – lets the API fetch markdown with Lightpanda when a document only has a source URL.
 - `DOCUMENT_CHUNK_SIZE` / `DOCUMENT_CHUNK_OVERLAP` – optional overrides for chunking behavior.
 
 ## Testing
