@@ -97,10 +97,17 @@ class Entity(BaseModel):
 class Document(BaseModel):
     """Source document describing an entity."""
 
+    class ScrapeStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        IN_PROGRESS = "in_progress", "In progress"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
     entity = models.ForeignKey(Entity, related_name="documents", on_delete=models.CASCADE)
-    source = models.CharField(max_length=128, blank=True, null=True)
+    source = models.CharField(max_length=255, blank=True, null=True)
     title = models.CharField(max_length=255, blank=True)
-    body = models.TextField(blank=True)
+    scrape_status = models.CharField(max_length=16, choices=ScrapeStatus.choices, default=ScrapeStatus.PENDING)
+    body = models.TextField(blank=True, null=True)
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:

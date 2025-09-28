@@ -7,7 +7,9 @@ from celery import shared_task
 from django.db import transaction
 
 from .ai_clients import get_embedding_client, get_weaviate_client
+from .lightpanda import LightpandaError
 from .models import Document, DocumentChunk
+from .services.document_ingestion import ensure_document_body
 
 try:  # OpenAI 1.x style
     from openai import OpenAIError, RateLimitError
@@ -62,6 +64,50 @@ def _split_text(text: str, chunk_size: int, overlap: int) -> List[Tuple[str, int
 
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task(bind=True)
+def scrape_document_task(self, document_id: str) -> None:
+    """Populate a document body from Lightpanda and trigger chunking."""
+
+    try:
+        document = Document.objects.get(id=document_id)
+    except Document.DoesNotExist:  # pragma: no cover - defensive guard
+        logger.warning("scrape_document_task skipped missing document %s", document_id)
+        return
+
+    if document.body and document.body.strip():
+        if document.scrape_status != Document.ScrapeStatus.COMPLETED:
+            document.scrape_status = Document.ScrapeStatus.COMPLETED
+            document.save(update_fields=["scrape_status"])
+        if not document.chunks.exists():
+            chunk_document_task.delay(str(document.id))
+        return
+
+    if not document.source:
+        document.scrape_status = Document.ScrapeStatus.FAILED
+        document.save(update_fields=["scrape_status"])
+        logger.warning(
+            "scrape_document_task cannot scrape document %s without a source",
+            document_id,
+        )
+        return
+
+    document.scrape_status = Document.ScrapeStatus.IN_PROGRESS
+    document.save(update_fields=["scrape_status"])
+
+    try:
+        ensure_document_body(document, raise_on_failure=True)
+    except LightpandaError:
+        document.scrape_status = Document.ScrapeStatus.FAILED
+        document.save(update_fields=["scrape_status"])
+        logger.exception("scrape_document_task failed for %s", document_id)
+        return
+
+    document.scrape_status = Document.ScrapeStatus.COMPLETED
+    document.save(update_fields=["body", "scrape_status"])
+
+    chunk_document_task.delay(str(document.id))
 
 
 def _ensure_weaviate_collection_for_document_chunks(client) -> None:

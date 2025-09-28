@@ -35,17 +35,17 @@ export function generateMatchesForJob(job: Job): Match[] {
   const examplePairs = [
     {
       source: `${job.sourceEntityType} prospect ${Math.floor(Math.random() * 300 + 10)}`,
-      target: `${job.targetEntity} target ${Math.floor(Math.random() * 60 + 1)}`,
+      target: `${job.targetEntityType} target ${Math.floor(Math.random() * 60 + 1)}`,
       summary: "High overlap on skills, strong culture signals, and complementary experience.",
     },
     {
       source: `${job.sourceEntityType} prospect ${Math.floor(Math.random() * 300 + 310)}`,
-      target: `${job.targetEntity} target ${Math.floor(Math.random() * 60 + 61)}`,
+      target: `${job.targetEntityType} target ${Math.floor(Math.random() * 60 + 61)}`,
       summary: "Alignment on seniority and domain expertise with positive feedback loops.",
     },
     {
       source: `${job.sourceEntityType} prospect ${Math.floor(Math.random() * 300 + 610)}`,
-      target: `${job.targetEntity} target ${Math.floor(Math.random() * 60 + 121)}`,
+      target: `${job.targetEntityType} target ${Math.floor(Math.random() * 60 + 121)}`,
       summary: "Strong values fit, relevant outcomes in last two roles, and balanced location/timezone overlap.",
     },
   ];

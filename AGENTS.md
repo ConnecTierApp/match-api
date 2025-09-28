@@ -15,6 +15,7 @@ The `web/` directory follows a structured approach to organize Next.js component
 - Each page should have its own `components/`, `hooks/`, and `lib/` folders when needed
 - Structure: `app/[page]/components/my-component/my-component.tsx`
 - Tests are co-located: `app/[page]/components/my-component/my-component.test.tsx`
+- DO NOT USE A DIRECTORY CALLED `_components` (with the leading underscore).
 
 #### Component Architecture
 - **Simple components**: Single file in component directory

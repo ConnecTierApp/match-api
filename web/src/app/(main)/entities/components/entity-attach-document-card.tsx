@@ -35,7 +35,7 @@ export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardP
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!draft.title.trim() || !draft.content.trim()) {
+    if (!draft.title.trim()) {
       return;
     }
 

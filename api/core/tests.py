@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import DocumentChunk, EntityType, Workspace
+from .models import Document, DocumentChunk, EntityType, Workspace
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -23,14 +23,19 @@ class CoreCrudFlowTests(APITestCase):
         self.lightpanda_patcher = patch(
             "core.services.document_ingestion.fetch_markdown"
         )
+        self.matching_task_patcher = patch(
+            "core.signals.run_matching_job_task.delay"
+        )
         self.mock_get_embedding = self.embedding_patcher.start()
         self.mock_get_weaviate = self.weaviate_patcher.start()
         self.mock_ensure_collection = self.ensure_collection_patcher.start()
         self.mock_fetch_markdown = self.lightpanda_patcher.start()
+        self.mock_run_matching_job = self.matching_task_patcher.start()
         self.addCleanup(self.embedding_patcher.stop)
         self.addCleanup(self.weaviate_patcher.stop)
         self.addCleanup(self.ensure_collection_patcher.stop)
         self.addCleanup(self.lightpanda_patcher.stop)
+        self.addCleanup(self.matching_task_patcher.stop)
 
         self.embedding_client = MagicMock()
         self.embedding_client.embeddings.create.return_value = SimpleNamespace(
@@ -106,6 +111,12 @@ class CoreCrudFlowTests(APITestCase):
         self.assertEqual(document_response.status_code, status.HTTP_201_CREATED)
         document_id = document_response.data["id"]
         self.mock_fetch_markdown.assert_called_once_with("upload")
+        # Response shows initial pending state; async task updates status shortly after.
+        self.assertEqual(document_response.data["scrape_status"], "pending")
+
+        document = Document.objects.get(id=document_id)
+        self.assertEqual(document.scrape_status, Document.ScrapeStatus.COMPLETED)
+        self.assertTrue((document.body or "").strip())
 
         chunks = DocumentChunk.objects.filter(document_id=document_id)
         self.assertEqual(chunks.count(), 1)

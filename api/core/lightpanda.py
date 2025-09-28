@@ -98,11 +98,6 @@ def _clean_html(html: str) -> str:
             logger.debug(f"Error removing elements with selector {selector}: {e}")
     
 
-    print("@@@@@@@@@@@@@@@@")
-    print("@@@@@@@@@@@@@@@@")
-    print("Tmp:", str(soup))
-    print("@@@@@@@@@@@@@@@@")
-    print("@@@@@@@@@@@@@@@@")
     # Remove empty elements that might be left behind
     # for element in soup.find_all():
     #     if not element.get_text(strip=True) and not element.find_all(['img', 'video', 'audio']):
@@ -214,11 +209,6 @@ def fetch_markdown(url: str) -> str:
 
     # Clean the HTML before converting to markdown
     cleaned_html = _clean_html(html)
-    print("@@@@@@@@@@@@@@@@")
-    print("@@@@@@@@@@@@@@@@")
-    print("Cleaned HTML:", cleaned_html)
-    print("@@@@@@@@@@@@@@@@")
-    print("@@@@@@@@@@@@@@@@")
     return _html_to_markdown(cleaned_html)
 
 

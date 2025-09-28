@@ -73,9 +73,9 @@ class WeaviateVectorSearcher(VectorSearcher):
             filter_obj = Filter.by_property("entity_id").equal(entity_id)
 
         result = collection.query.near_vector(
-            vector=vector,
+            near_vector=vector, 
             limit=limit,
-            filters=filter_obj,
+            filters=filter_obj, 
         )
 
         hits: list[VectorSearchHit] = []

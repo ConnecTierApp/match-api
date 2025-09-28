@@ -76,10 +76,6 @@ class EntitySerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-from .lightpanda import LightpandaError
-from .services.document_ingestion import ensure_document_body
-
-
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
@@ -89,29 +85,30 @@ class DocumentSerializer(serializers.ModelSerializer):
             "source",
             "title",
             "body",
+            "scrape_status",
             "metadata",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "scrape_status", "created_at", "updated_at"]
         extra_kwargs = {
             "body": {"required": False, "allow_blank": True},
         }
 
     def create(self, validated_data):
-        instance = Document(**validated_data)
-        try:
-            ensure_document_body(instance, raise_on_failure=True)
-        except LightpandaError as exc:
-            raise serializers.ValidationError({"body": str(exc)}) from exc
+        body = (validated_data.get("body") or "").strip()
+        source = (validated_data.get("source") or "").strip()
 
-        if not instance.body.strip():
+        if not body and not source:
             raise serializers.ValidationError(
                 {"body": "Document body is required when no source is provided."}
             )
 
-        instance.save()
-        return instance
+        if body:
+            validated_data["body"] = body
+            validated_data["scrape_status"] = Document.ScrapeStatus.COMPLETED
+
+        return Document.objects.create(**validated_data)
 
 
 class DocumentChunkSerializer(serializers.ModelSerializer):
