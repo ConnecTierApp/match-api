@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/table";
 import { Job, Match } from "@/types/matching";
 
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+
 interface MatchesReviewCardProps {
   jobs: Job[];
   matches: Match[];
@@ -38,10 +40,26 @@ interface MatchesReviewCardProps {
 }
 
 export function MatchesReviewCard({ jobs, matches, selectedJobId, onSelectJob, totalAutoApproved }: MatchesReviewCardProps) {
+  const developerRequests = [
+    {
+      title: "List matches",
+      method: "GET" as const,
+      path: "matches/",
+    },
+    {
+      title: "List match features",
+      method: "GET" as const,
+      path: "match-features/",
+    },
+  ];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Review matches</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Review matches</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Matches API" />
+        </div>
         <CardDescription>
           Filter by job and spot-check high-value connections before they sync downstream.
         </CardDescription>

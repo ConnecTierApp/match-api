@@ -28,6 +28,8 @@ import { useMatch } from "@/modules/matches/hooks/use-match";
 import { useMatchMutations } from "@/modules/matches/hooks/use-match-mutations";
 import { MatchUpdate } from "@/types/matching";
 
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+
 export default function MatchDetailPage() {
   const params = useParams<{ matchId: string }>();
   const match = useMatch(params.matchId);
@@ -43,6 +45,53 @@ export default function MatchDetailPage() {
   }));
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const developerRequests = [
+    {
+      title: "Update source entity",
+      method: "PATCH" as const,
+      path: `entities/${match?.sourceEntityId}/`,
+      body: () => ({
+        name: formState.sourceName,
+        entity_type: job?.sourceEntityType,
+        metadata: { summary: formState.summary },
+      }),
+    },
+    {
+      title: "Update target entity",
+      method: "PATCH" as const,
+      path: `entities/${match?.targetEntityId}/`,
+      body: () => ({
+        name: formState.targetName,
+        entity_type: job?.targetEntityType,
+        metadata: { summary: formState.summary },
+      }),
+    },
+    {
+      title: "Update match",
+      method: "PATCH" as const,
+      path: `matches/${match?.id}/`,
+      body: () => ({
+        score: formState.score > 1 ? formState.score / 100 : formState.score,
+        explanation: formState.summary,
+      }),
+    },
+    {
+      title: "Set match status",
+      method: "POST" as const,
+      path: "match-features/",
+      body: () => ({
+        match: match?.id,
+        label: "status",
+        value_text: formState.status,
+      }),
+    },
+    {
+      title: "Delete match",
+      method: "DELETE" as const,
+      path: `matches/${match?.id}/`,
+    },
+  ];
 
   if (!match) {
     return (
@@ -124,7 +173,10 @@ export default function MatchDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Edit match</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>Edit match</CardTitle>
+            <DeveloperApiModal requests={developerRequests} triggerLabel="Match API" />
+          </div>
           <CardDescription>Refine summary, score, or routing confidence.</CardDescription>
         </CardHeader>
         <CardContent>

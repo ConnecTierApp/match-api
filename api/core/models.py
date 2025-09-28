@@ -258,6 +258,149 @@ class MatchingJobTarget(BaseModel):
         return f"Target {self.entity_id} for job {self.matching_job_id}"
 
 
+class MatchingJobRun(BaseModel):
+    """Single execution of a matching job with persisted audit context."""
+
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        COMPLETE = "complete", "Complete"
+        FAILED = "failed", "Failed"
+
+    matching_job = models.ForeignKey(
+        MatchingJob,
+        related_name="runs",
+        on_delete=models.CASCADE,
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.RUNNING,
+    )
+    matching_config_snapshot = models.JSONField(default=dict, blank=True)
+    plan_snapshot = models.JSONField(default=list, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Run {self.id} for job {self.matching_job_id} ({self.status})"
+
+
+class MatchingSearchLog(BaseModel):
+    """Audit record for an individual vector search executed during a run."""
+
+    class QueryType(models.TextChoices):
+        SOURCE = "source", "Source"
+        TARGET = "target", "Target"
+
+    run = models.ForeignKey(
+        MatchingJobRun,
+        related_name="searches",
+        on_delete=models.CASCADE,
+    )
+    criterion_id = models.CharField(max_length=128)
+    criterion_label = models.CharField(max_length=255, blank=True)
+    query_text = models.TextField()
+    query_type = models.CharField(max_length=16, choices=QueryType.choices)
+    target_entity = models.ForeignKey(
+        Entity,
+        related_name="target_search_logs",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    limit = models.PositiveIntegerField()
+    returned_count = models.PositiveIntegerField(default=0)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Search {self.id} ({self.criterion_id}/{self.query_type})"
+
+
+class MatchingSearchHitLog(BaseModel):
+    """Captured details for a single search hit."""
+
+    search = models.ForeignKey(
+        MatchingSearchLog,
+        related_name="hits",
+        on_delete=models.CASCADE,
+    )
+    rank = models.PositiveIntegerField(default=1)
+    chunk = models.ForeignKey(
+        DocumentChunk,
+        related_name="search_hit_logs",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    chunk_text = models.TextField(blank=True)
+    score = models.FloatField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["rank"]
+
+    def __str__(self) -> str:
+        return f"Search hit {self.rank} for search {self.search_id}"
+
+
+class MatchingEvaluationLog(BaseModel):
+    """Aggregated evaluation output for a target entity within a run."""
+
+    run = models.ForeignKey(
+        MatchingJobRun,
+        related_name="evaluations",
+        on_delete=models.CASCADE,
+    )
+    target_entity = models.ForeignKey(
+        Entity,
+        related_name="evaluation_logs",
+        on_delete=models.CASCADE,
+    )
+    average_score = models.FloatField(null=True, blank=True)
+    coverage = models.FloatField(null=True, blank=True)
+    search_hit_ratio = models.FloatField(null=True, blank=True)
+    summary_reason = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("run", "target_entity")
+
+    def __str__(self) -> str:
+        return f"Evaluation for target {self.target_entity_id} (run {self.run_id})"
+
+
+class MatchingEvaluationDetailLog(BaseModel):
+    """Per-criterion evaluation evidence captured for auditing."""
+
+    evaluation = models.ForeignKey(
+        MatchingEvaluationLog,
+        related_name="details",
+        on_delete=models.CASCADE,
+    )
+    criterion_id = models.CharField(max_length=128)
+    criterion_label = models.CharField(max_length=255, blank=True)
+    rating_value = models.IntegerField(null=True, blank=True)
+    rating_name = models.CharField(max_length=32, blank=True)
+    rating_prompt = models.TextField(blank=True)
+    rating_response = models.TextField(blank=True)
+    reasoning_prompt = models.TextField(blank=True)
+    reasoning_response = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["criterion_id"]
+
+    def __str__(self) -> str:
+        return f"Evaluation detail {self.criterion_id} for evaluation {self.evaluation_id}"
+
+
 class Match(BaseModel):
     """Result of matching a source entity to one target within a job."""
 

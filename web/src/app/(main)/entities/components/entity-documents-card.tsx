@@ -16,8 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityDocument, EntityDocumentInput } from "@/types/matching";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface EntityDocumentsCardProps {
+  entityId: string;
   documents: EntityDocument[];
   isLoading: boolean;
   onUpdateDocument: (documentId: string, input: EntityDocumentInput) => Promise<void> | void;
@@ -32,6 +34,7 @@ const emptyDraft: EntityDocumentInput = {
 };
 
 export function EntityDocumentsCard({
+  entityId,
   documents,
   isLoading,
   onUpdateDocument,
@@ -96,6 +99,36 @@ export function EntityDocumentsCard({
 
         {documents.map((document) => {
           const isEditingCurrent = editingId === document.id;
+          const tagsForRequest = isEditingCurrent ? parseTags(tagsInput) : document.tags;
+          const sourceForRequest = isEditingCurrent ? draft.source ?? "" : document.source ?? "";
+          const titleForRequest = isEditingCurrent ? draft.title : document.title;
+          const contentForRequest = isEditingCurrent ? draft.content : document.content;
+
+          const developerRequests = [
+            {
+              title: "Update document",
+              method: "PATCH" as const,
+              path: `documents/${document.id}/`,
+              body: () => ({
+                title: titleForRequest,
+                body: contentForRequest,
+                source: normalizeSource(sourceForRequest),
+                metadata: { tags: tagsForRequest },
+              }),
+            },
+            {
+              title: "Delete document",
+              method: "DELETE" as const,
+              path: `documents/${document.id}/`,
+            },
+            {
+              title: "List documents for entity",
+              method: "GET" as const,
+              path: "documents/",
+              params: { entity: entityId },
+            },
+          ];
+
           return (
             <div
               key={document.id}
@@ -115,15 +148,16 @@ export function EntityDocumentsCard({
                         className="h-11 min-w-0"
                       />
                     </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <Button type="submit" size="sm" disabled={isSaving} className="gap-1">
-                        <Check className="h-4 w-4" /> Save
-                      </Button>
-                      <Button type="button" size="sm" variant="ghost" className="gap-1" onClick={stopEditing}>
-                        <X className="h-4 w-4" /> Cancel
-                      </Button>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button type="submit" size="sm" disabled={isSaving} className="gap-1">
+                      <Check className="h-4 w-4" /> Save
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" className="gap-1" onClick={stopEditing}>
+                      <X className="h-4 w-4" /> Cancel
+                    </Button>
+                    <DeveloperApiModal requests={developerRequests} triggerLabel="Document API" />
                   </div>
+                </div>
                   <div className="grid gap-3">
                     <Input
                       value={tagsInput}
@@ -177,6 +211,7 @@ export function EntityDocumentsCard({
                       >
                         <Trash2 className="h-4 w-4" /> Delete
                       </Button>
+                      <DeveloperApiModal requests={developerRequests} triggerLabel="Document API" />
                     </div>
                   </div>
                   {document.tags.length > 0 ? (

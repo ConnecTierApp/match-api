@@ -26,6 +26,9 @@ import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
 import { useMatchesByJob } from "@/modules/matches/hooks/use-matches-by-job";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
 
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+import { JOB_STATUS_TO_API } from "@/modules/jobs/lib/api";
+
 export default function JobDetailPage() {
   const params = useParams<{ jobId: string }>();
   const job = useJob(params.jobId);
@@ -35,6 +38,22 @@ export default function JobDetailPage() {
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const developerRequests = job
+    ? [
+        {
+          title: "Mark job completed",
+          method: "PATCH" as const,
+          path: `matching-jobs/${job.id}/`,
+          body: { status: JOB_STATUS_TO_API["Completed"] },
+        },
+        {
+          title: "Delete job",
+          method: "DELETE" as const,
+          path: `matching-jobs/${job.id}/`,
+        },
+      ]
+    : [];
 
   if (!job) {
     return (
@@ -129,6 +148,7 @@ export default function JobDetailPage() {
         >
           {isDeleting ? "Removing..." : "Remove job"}
         </Button>
+        <DeveloperApiModal requests={developerRequests} triggerLabel="Job API" />
       </div>
 
       <Card>

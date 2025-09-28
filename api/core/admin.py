@@ -7,8 +7,13 @@ from .models import (
     EntityType,
     Match,
     MatchFeature,
+    MatchingEvaluationDetailLog,
+    MatchingEvaluationLog,
     MatchingJob,
+    MatchingJobRun,
     MatchingJobTarget,
+    MatchingSearchHitLog,
+    MatchingSearchLog,
     MatchingTemplate,
     Workspace,
 )
@@ -77,6 +82,41 @@ class MatchingJobAdmin(admin.ModelAdmin):
 class MatchingJobTargetAdmin(admin.ModelAdmin):
     list_display = ("matching_job", "entity", "ranking_hint")
     search_fields = ("matching_job__id", "entity__name")
+
+
+@admin.register(MatchingJobRun)
+class MatchingJobRunAdmin(admin.ModelAdmin):
+    list_display = ("matching_job", "status", "started_at", "finished_at")
+    list_filter = ("status", "matching_job__workspace")
+    search_fields = ("matching_job__id",)
+
+
+@admin.register(MatchingSearchLog)
+class MatchingSearchLogAdmin(admin.ModelAdmin):
+    list_display = ("run", "criterion_id", "query_type", "target_entity", "returned_count", "created_at")
+    list_filter = ("query_type", "run__matching_job__workspace")
+    search_fields = ("criterion_id", "query_text")
+
+
+@admin.register(MatchingSearchHitLog)
+class MatchingSearchHitLogAdmin(admin.ModelAdmin):
+    list_display = ("search", "rank", "chunk", "score")
+    list_filter = ("search__query_type",)
+    search_fields = ("chunk_text",)
+
+
+@admin.register(MatchingEvaluationLog)
+class MatchingEvaluationLogAdmin(admin.ModelAdmin):
+    list_display = ("run", "target_entity", "average_score", "coverage", "search_hit_ratio")
+    list_filter = ("run__matching_job__workspace",)
+    search_fields = ("target_entity__name",)
+
+
+@admin.register(MatchingEvaluationDetailLog)
+class MatchingEvaluationDetailLogAdmin(admin.ModelAdmin):
+    list_display = ("evaluation", "criterion_id", "rating_name", "rating_value")
+    list_filter = ("rating_name",)
+    search_fields = ("criterion_label", "rating_response", "reasoning_response")
 
 
 @admin.register(Match)

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { Entity } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface EntitiesListCardProps {
   entities: Entity[];
@@ -32,10 +33,22 @@ export function EntitiesListCard({ entities, entityTypeOptions, isLoading, onDel
     return map;
   }, [entityTypeOptions]);
 
+  const listRequests = [
+    {
+      title: "List entities",
+      method: "GET" as const,
+      path: "entities/",
+      description: "Retrieve all entities in the workspace including summaries and metadata.",
+    },
+  ];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entities</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Entities</CardTitle>
+          <DeveloperApiModal requests={listRequests} triggerLabel="View list API" />
+        </div>
         <CardDescription>All teams, personas, and datasets ready for matching.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -81,6 +94,23 @@ export function EntitiesListCard({ entities, entityTypeOptions, isLoading, onDel
               >
                 <Trash2 className="h-4 w-4" /> Delete
               </Button>
+              <DeveloperApiModal
+                requests={[
+                  {
+                    title: "Delete entity",
+                    method: "DELETE",
+                    path: `entities/${entity.id}/`,
+                    description: "Remove this entity and its associated documents.",
+                  },
+                  {
+                    title: "List documents for entity",
+                    method: "GET",
+                    path: "documents/",
+                    params: { entity: entity.id },
+                  },
+                ]}
+                triggerLabel="API request"
+              />
             </div>
           </div>
         ))}

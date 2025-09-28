@@ -23,6 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { EntityInput } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface CreateEntityCardProps {
   entityOptions: EntityTypeOption[];
@@ -64,6 +65,25 @@ export function CreateEntityCard({
 
   const isValid = hasEntityTypes && Boolean(draft.name.trim()) && Boolean(draft.type);
 
+  const developerRequests = [
+    {
+      title: "List entity types",
+      method: "GET" as const,
+      path: "entity-types/",
+    },
+    {
+      title: "Create entity",
+      method: "POST" as const,
+      path: "entities/",
+      body: () => ({
+        name: draft.name.trim(),
+        entity_type: draft.type || undefined,
+        metadata: { summary: draft.summary.trim() },
+      }),
+      description: "Create a new entity with the selected type and optional summary metadata.",
+    },
+  ];
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -86,7 +106,10 @@ export function CreateEntityCard({
   return (
     <Card id="create-entity">
       <CardHeader>
-        <CardTitle>Register a new entity</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Register a new entity</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="View create API" />
+        </div>
         <CardDescription>
           Add teams, talent pools, or opportunity sets that will power downstream matching.
         </CardDescription>

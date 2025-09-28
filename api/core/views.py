@@ -1,5 +1,9 @@
+import logging
+
+from django.db import transaction
 from django.http import JsonResponse
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 
 from .models import (
     Document,
@@ -25,6 +29,9 @@ from .serializers import (
     MatchingTemplateSerializer,
     WorkspaceSerializer,
 )
+from .services.matching_jobs import populate_job_targets_from_config
+
+logger = logging.getLogger(__name__)
 
 
 def home(_request):
@@ -91,6 +98,20 @@ class MatchingJobViewSet(viewsets.ModelViewSet):
         .order_by("-created_at")
     )
     serializer_class = MatchingJobSerializer
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            job = serializer.save()
+
+            try:
+                created_targets = populate_job_targets_from_config(job)
+            except ValidationError:
+                logger.exception(
+                    "Failed to populate targets for job %s due to invalid configuration", job.id
+                )
+                raise
+
+            logger.debug("Job %s auto-populated %s targets", job.id, created_targets)
 
 
 class MatchingJobTargetViewSet(viewsets.ModelViewSet):

@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { Entity, Template } from "@/types/matching";
 import { JobInput, JobStatus } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+import { JOB_STATUS_TO_API } from "@/modules/jobs/lib/api";
 
 interface LaunchJobCardProps {
   templates: Template[];
@@ -136,10 +138,34 @@ export function LaunchJobCard({
     }
   };
 
+  const developerRequests = [
+    {
+      title: "Launch matching job",
+      method: "POST" as const,
+      path: "matching-jobs/",
+      body: () => {
+        const displayName = draft.displayName.trim() || `${draft.templateId || "template"} job`;
+        return {
+          template: draft.templateId,
+          source_entity: draft.sourceEntityId,
+          status: JOB_STATUS_TO_API[draft.status] ?? JOB_STATUS_TO_API["Queued"],
+          config_override: {
+            display_name: displayName,
+            target_entity_type: draft.targetEntityType,
+            ...(draft.notes.trim() ? { notes: draft.notes.trim() } : {}),
+          },
+        };
+      },
+    },
+  ];
+
   return (
     <Card id="launch-job">
       <CardHeader>
-        <CardTitle>Launch a matching job</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Launch a matching job</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Job API" />
+        </div>
         <CardDescription>
           Pick a template, choose an existing source entity, and queue matching for the latest targets.
         </CardDescription>

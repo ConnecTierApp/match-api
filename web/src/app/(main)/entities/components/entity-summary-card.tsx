@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Entity } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface EntitySummaryCardProps {
   entity: Entity;
@@ -49,12 +50,31 @@ export function EntitySummaryCard({ entity, onUpdateSummary, onDelete }: EntityS
     }
   };
 
+  const developerRequests = [
+    {
+      title: "Update summary",
+      method: "PATCH" as const,
+      path: `entities/${entity.id}/`,
+      body: () => ({
+        metadata: { summary: summary.trim() },
+      }),
+    },
+    {
+      title: "Delete entity",
+      method: "DELETE" as const,
+      path: `entities/${entity.id}/`,
+    },
+  ];
+
   return (
     <Card>
       <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">{entity.type}</Badge>
-          <span className="text-xs text-muted-foreground">Last updated {entity.lastUpdated}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="secondary">{entity.type}</Badge>
+            <span className="text-xs text-muted-foreground">Last updated {entity.lastUpdated}</span>
+          </div>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Entity API" />
         </div>
         <CardTitle className="text-2xl">{entity.name}</CardTitle>
         <CardDescription>

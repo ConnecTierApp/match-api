@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Iterable
 
 from openai import OpenAI
@@ -11,6 +12,8 @@ from core.ai_clients import get_embedding_client, get_llm_client, get_weaviate_c
 from core.models import DocumentChunk
 
 from .interfaces import EmbeddingGenerator, LanguageModel, VectorSearchHit, VectorSearcher
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIEmbeddingGenerator(EmbeddingGenerator):
@@ -72,10 +75,19 @@ class WeaviateVectorSearcher(VectorSearcher):
         if entity_id:
             filter_obj = Filter.by_property("entity_id").equal(entity_id)
 
+        logger.debug(
+            "Weaviate search: workspace=%s entity_filter=%s limit=%s prompt_len=%s vector_dims=%s",
+            workspace_id,
+            entity_id,
+            limit,
+            len(query),
+            len(vector),
+        )
+
         result = collection.query.near_vector(
-            near_vector=vector, 
+            near_vector=vector,
             limit=limit,
-            filters=filter_obj, 
+            filters=filter_obj,
         )
 
         hits: list[VectorSearchHit] = []
@@ -84,9 +96,15 @@ class WeaviateVectorSearcher(VectorSearcher):
             str(chunk.id): chunk
             for chunk in DocumentChunk.objects.filter(id__in=chunk_ids)
         }
+        logger.debug(
+            "Weaviate search returned %s objects (chunk_ids=%s)",
+            len(result.objects),
+            chunk_ids,
+        )
         for obj in result.objects:
             chunk = chunks_by_id.get(obj.uuid)
             if not chunk:
+                logger.debug("Skipping hit with missing chunk %s", obj.uuid)
                 continue
             metadata = getattr(obj, "metadata", None)
             distance = getattr(metadata, "distance", None) if metadata else None
@@ -98,5 +116,11 @@ class WeaviateVectorSearcher(VectorSearcher):
                     metadata={"distance": distance} if distance is not None else {},
                 )
             )
+
+        logger.debug(
+            "Weaviate search assembled %s hits (top_score=%s)",
+            len(hits),
+            hits[0].score if hits else None,
+        )
 
         return hits

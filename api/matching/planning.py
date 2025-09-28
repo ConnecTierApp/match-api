@@ -8,10 +8,13 @@ configuration (JSON today, maybe dedicated models tomorrow).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from .configuration import MatchingConfiguration
 from .exceptions import PlanningError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -60,6 +63,9 @@ class SearchPlanBuilder:
         if not criteria_definitions:
             raise PlanningError("No search criteria provided after configuration normalization.")
 
+        logger.debug(
+            "Normalizing %s search criteria definitions", len(criteria_definitions)
+        )
         criteria = [
             SearchCriterion(
                 id=definition.id,
@@ -72,4 +78,5 @@ class SearchPlanBuilder:
             )
             for definition in criteria_definitions
         ]
+        logger.debug("Constructed search plan criteria ids=%s", [c.id for c in criteria])
         return SearchPlan(criteria=criteria)

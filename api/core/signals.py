@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -27,4 +28,4 @@ def enqueue_matching_job(sender, instance: MatchingJob, created: bool, **_: obje
     if not created:
         return
 
-    run_matching_job_task.delay(str(instance.id))
+    transaction.on_commit(lambda: run_matching_job_task.delay(str(instance.id)))

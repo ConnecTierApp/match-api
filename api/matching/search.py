@@ -7,6 +7,7 @@ provider internals or filter syntax.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -14,6 +15,8 @@ from core.models import DocumentChunk, Entity
 
 from .interfaces import VectorSearchHit, VectorSearcher
 from .planning import SearchCriterion, SearchPlan
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -61,11 +64,20 @@ def collect_source_snippets(
 
     snippets: dict[str, list[VectorSearchHit]] = {}
     for criterion in plan.criteria:
+        logger.debug(
+            "Collecting source snippets: criterion=%s limit=%s", criterion.id, criterion.source_snippet_limit
+        )
         hits = searcher.search(
             workspace_id=workspace_id,
             query=criterion.prompt,
             limit=criterion.source_snippet_limit,
             filters={"entity_id": str(source_entity.id)},
+        )
+        logger.debug(
+            "Collected %s source hits for criterion=%s (entity=%s)",
+            len(hits),
+            criterion.id,
+            source_entity.id,
         )
         snippets[criterion.id] = hits
     return snippets
@@ -87,17 +99,35 @@ def collect_target_matches(
 
     summaries: list[TargetSearchSummary] = []
     for target in targets:
+        logger.debug("Collecting target matches for entity=%s", target.id)
         hits: list[CriterionHit] = []
         for criterion in plan.criteria:
+            logger.debug(
+                "Target search: entity=%s criterion=%s limit=%s",
+                target.id,
+                criterion.id,
+                criterion.target_snippet_limit,
+            )
             search_hits = searcher.search(
                 workspace_id=workspace_id,
                 query=criterion.prompt,
                 limit=criterion.target_snippet_limit,
                 filters={"entity_id": str(target.id)},
             )
+            logger.debug(
+                "Target search returned %s hits for entity=%s criterion=%s",
+                len(search_hits),
+                target.id,
+                criterion.id,
+            )
             hits.extend(
                 CriterionHit(criterion=criterion, chunk=hit.chunk, score=hit.score)
                 for hit in search_hits
             )
+        logger.debug(
+            "Aggregated %s hits across criteria for target=%s",
+            len(hits),
+            target.id,
+        )
         summaries.append(TargetSearchSummary(target=target, hits=hits))
     return summaries

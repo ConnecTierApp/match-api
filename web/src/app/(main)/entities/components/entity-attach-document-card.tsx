@@ -15,8 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityDocumentInput } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface EntityAttachDocumentCardProps {
+  entityId: string;
   onAttach: (input: EntityDocumentInput) => Promise<void> | void;
 }
 
@@ -27,10 +29,26 @@ const initialDocument: EntityDocumentInput = {
   source: "",
 };
 
-export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardProps) {
+export function EntityAttachDocumentCard({ entityId, onAttach }: EntityAttachDocumentCardProps) {
   const [draft, setDraft] = useState(initialDocument);
   const [tagsInput, setTagsInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const developerRequests = [
+    {
+      title: "Attach document",
+      method: "POST" as const,
+      path: "documents/",
+      body: () => ({
+        entity: entityId,
+        title: draft.title.trim(),
+        body: draft.content,
+        source: normalizeSource(draft.source),
+        metadata: { tags: parseTags(tagsInput) },
+      }),
+      description: "Create a new entity document with markdown content and optional tags.",
+    },
+  ];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,7 +75,10 @@ export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardP
   return (
     <Card id="documents">
       <CardHeader>
-        <CardTitle>Attach new document</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Attach new document</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Document API" />
+        </div>
         <CardDescription>Store briefs, personas, or research notes that inform matching quality.</CardDescription>
       </CardHeader>
       <CardContent>

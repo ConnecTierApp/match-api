@@ -8,6 +8,7 @@ interaction—lives behind this façade.
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 
 from core.models import MatchingJob
@@ -20,6 +21,8 @@ from .interfaces import LanguageModel, VectorSearcher
 from .planning import SearchPlanBuilder
 from .results import MatchCandidate, calculate_hit_ratio
 from .search import collect_source_snippets, collect_target_matches
+
+logger = logging.getLogger(__name__)
 
 
 def run_matching_job(
@@ -44,7 +47,19 @@ def run_matching_job(
     active_publisher = publisher or NullMatchingJobEventPublisher(job_id=str(job.id))
 
     ctx = MatchingJobContext.load(job)
+    logger.info(
+        "Running matching job %s (workspace=%s source=%s targets=%s)",
+        job.id,
+        ctx.workspace_id,
+        ctx.source.entity.id,
+        [bundle.entity.id for bundle in ctx.targets],
+    )
     plan = SearchPlanBuilder(ctx.matching_config).build()
+    logger.debug(
+        "Search plan prepared with %s criteria: %s",
+        len(plan.criteria),
+        [criterion.id for criterion in plan.criteria],
+    )
     active_publisher.criteria_prepared(criteria=plan.criteria)
 
     # Pull the most representative source snippets so the LLM understands what
@@ -55,6 +70,10 @@ def run_matching_job(
         searcher=vector_searcher,
         workspace_id=ctx.workspace_id,
         source_entity=ctx.source.entity,
+    )
+    logger.debug(
+        "Source snippets collected: %s",
+        {criterion_id: len(hits) for criterion_id, hits in source_hits.items()},
     )
     active_publisher.source_snippets_prepared(
         counts={criterion_id: len(hits) for criterion_id, hits in source_hits.items()}
@@ -73,10 +92,20 @@ def run_matching_job(
         workspace_id=ctx.workspace_id,
         targets=[bundle.entity for bundle in ctx.targets],
     )
+    logger.debug(
+        "Target summaries collected: %s",
+        {summary.target.id: summary.hit_count() for summary in target_summaries},
+    )
 
     candidates: list[MatchCandidate] = []
     for summary in target_summaries:
         hits_per_criterion = Counter(hit.criterion.id for hit in summary.hits)
+        logger.debug(
+            "Evaluating target %s (%s hits per criterion: %s)",
+            summary.target.id,
+            summary.hit_count(),
+            dict(hits_per_criterion),
+        )
         active_publisher.target_search_completed(
             target_id=str(summary.target.id),
             target_name=summary.target.name,
@@ -98,6 +127,13 @@ def run_matching_job(
         )
 
         hit_ratio = calculate_hit_ratio(plan, evaluation)
+        logger.debug(
+            "Target %s evaluation: average_score=%s coverage=%s hit_ratio=%s",
+            summary.target.id,
+            evaluation.average_score(),
+            evaluation.coverage(plan),
+            hit_ratio,
+        )
         candidate = MatchCandidate(
             target=summary.target,
             evaluation=evaluation,
@@ -112,6 +148,7 @@ def run_matching_job(
         )
         candidates.append(candidate)
 
+    logger.info("Matching job %s produced %s candidates", job.id, len(candidates))
     return candidates
 
 

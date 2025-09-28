@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { normalizeEntityTypeSlug } from "@/modules/entity-types/lib/format";
 import { EntityTypeInput } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+import { useWorkspaceContext } from "@/modules/workspaces/components/workspace-provider/workspace-provider";
 
 interface CreateEntityTypeCardProps {
   onCreate: (input: EntityTypeInput) => Promise<void> | void;
@@ -30,10 +32,33 @@ const initialDraft: EntityTypeInput = {
 };
 
 export function CreateEntityTypeCard({ onCreate, disableForm = false }: CreateEntityTypeCardProps) {
+  const { currentWorkspace } = useWorkspaceContext();
+  const workspaceSlug = currentWorkspace?.slug ?? "";
   const [draft, setDraft] = useState<EntityTypeInput>(initialDraft);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValid = Boolean(draft.slug.trim());
+
+  const developerRequests = [
+    {
+      title: "List entity types",
+      method: "GET" as const,
+      path: "entity-types/",
+      description: "Retrieve all entity types available to the current workspace.",
+    },
+    {
+      title: "Create entity type",
+      method: "POST" as const,
+      path: "entity-types/",
+      body: () => ({
+        slug: draft.slug.trim(),
+        display_name: draft.displayName?.trim() || "",
+        description: draft.description?.trim() || "",
+        metadata: draft.metadata ?? {},
+        workspace: workspaceSlug || undefined,
+      }),
+    },
+  ];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,7 +84,10 @@ export function CreateEntityTypeCard({ onCreate, disableForm = false }: CreateEn
   return (
     <Card id="create-entity-type">
       <CardHeader>
-        <CardTitle>Create entity type</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Create entity type</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Entity type API" />
+        </div>
         <CardDescription>Define reusable labels to group entities for matching templates.</CardDescription>
       </CardHeader>
       <CardContent>

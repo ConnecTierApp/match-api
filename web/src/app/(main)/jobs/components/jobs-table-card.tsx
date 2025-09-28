@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Job } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface JobsTableCardProps {
   jobs: Job[];
@@ -20,10 +21,21 @@ interface JobsTableCardProps {
 }
 
 export function JobsTableCard({ jobs, templateNames }: JobsTableCardProps) {
+  const developerRequests = [
+    {
+      title: "List jobs",
+      method: "GET" as const,
+      path: "matching-jobs/",
+    },
+  ];
+
   return (
     <Card className="h-fit">
       <CardHeader>
-        <CardTitle>Latest jobs</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Latest jobs</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="View jobs API" />
+        </div>
         <CardDescription>Monitor progress and hop back into the scoring stream.</CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">

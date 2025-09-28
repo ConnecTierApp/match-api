@@ -16,6 +16,7 @@ import { useMemo } from "react";
 
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { Template } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface TemplatesListCardProps {
   templates: Template[];
@@ -30,10 +31,21 @@ export function TemplatesListCard({ templates, entityTypeOptions, onDelete }: Te
     return map;
   }, [entityTypeOptions]);
 
+  const listRequests = [
+    {
+      title: "List templates",
+      method: "GET" as const,
+      path: "matching-templates/",
+    },
+  ];
+
   return (
     <Card className="h-fit">
       <CardHeader>
-        <CardTitle>Templates</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Templates</CardTitle>
+          <DeveloperApiModal requests={listRequests} triggerLabel="View list API" />
+        </div>
         <CardDescription>Recently updated blueprints you can reuse.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -75,6 +87,21 @@ export function TemplatesListCard({ templates, entityTypeOptions, onDelete }: Te
               >
                 <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove
               </Button>
+              <DeveloperApiModal
+                requests={[
+                  {
+                    title: "Delete template",
+                    method: "DELETE",
+                    path: `matching-templates/${template.id}/`,
+                  },
+                  {
+                    title: "Get template detail",
+                    method: "GET",
+                    path: `matching-templates/${template.id}/`,
+                  },
+                ]}
+                triggerLabel="Template API"
+              />
             </div>
           </div>
         ))}

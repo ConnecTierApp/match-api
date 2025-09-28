@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { MatchingCriterionInput, TemplateInput } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface CreateTemplateCardProps {
   entityOptions: EntityTypeOption[];
@@ -98,6 +99,33 @@ export function CreateTemplateCard({
   const hasValidCriteria = draft.criteria.length > 0 && draft.criteria.every((criterion) => criterion.label.trim() && criterion.prompt.trim());
   const isValid = Boolean(draft.name.trim()) && hasEntityTypes && hasValidCriteria;
 
+  const developerRequests = [
+    {
+      title: "Create template",
+      method: "POST" as const,
+      path: "matching-templates/",
+      body: () => ({
+        name: draft.name.trim(),
+        description: draft.description.trim(),
+        source_entity_type: draft.defaultSource,
+        target_entity_type: draft.defaultTarget,
+        config: {
+          scoring_strategy: draft.scoringStrategy,
+          search_criteria: draft.criteria.map((criterion, index) => ({
+            id: criterion.id || `criterion-${index + 1}`,
+            label: criterion.label.trim(),
+            prompt: criterion.prompt,
+            weight: criterion.weight ?? 1,
+            guidance: criterion.guidance,
+            source_snippet_limit: criterion.sourceLimit ?? 3,
+            target_snippet_limit: criterion.targetLimit ?? 3,
+          })),
+        },
+      }),
+      description: "Define the scoring strategy and criteria used when launching jobs.",
+    },
+  ];
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -123,7 +151,10 @@ export function CreateTemplateCard({
   return (
     <Card id="create-template">
       <CardHeader>
-        <CardTitle>Create a template</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Create a template</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Template API" />
+        </div>
         <CardDescription>
           Capture the reusable criteria to score how two entity types should connect.
         </CardDescription>

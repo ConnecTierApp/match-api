@@ -22,6 +22,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Job, MatchInput } from "@/types/matching";
 
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
+
 interface ManualMatchCardProps {
   jobs: Job[];
   draft: MatchInput;
@@ -31,10 +33,62 @@ interface ManualMatchCardProps {
 }
 
 export function ManualMatchCard({ jobs, draft, onDraftChange, onSubmit, isSubmitting }: ManualMatchCardProps) {
+  const selectedJob = jobs.find((job) => job.id === draft.jobId) ?? null;
+
+  const developerRequests = [
+    {
+      title: "Create source entity",
+      method: "POST" as const,
+      path: "entities/",
+      body: () => ({
+        name: draft.sourceName || `${selectedJob?.sourceEntityType ?? "candidate"} match source`,
+        entity_type: selectedJob?.sourceEntityType ?? "Candidates",
+        metadata: { summary: draft.summary },
+      }),
+    },
+    {
+      title: "Create target entity",
+      method: "POST" as const,
+      path: "entities/",
+      body: () => ({
+        name: draft.targetName || `${selectedJob?.targetEntityType ?? "target"} match target`,
+        entity_type: selectedJob?.targetEntityType ?? "Roles",
+        metadata: { summary: draft.summary },
+      }),
+    },
+    {
+      title: "Create match",
+      method: "POST" as const,
+      path: "matches/",
+      body: () => ({
+        matching_job: draft.jobId,
+        source_entity: "<source_entity_id>",
+        target_entity: "<target_entity_id>",
+        score: draft.score > 1 ? draft.score / 100 : draft.score,
+        explanation: draft.summary,
+        rank: draft.status === "auto_approved" ? 1 : draft.status === "manual_review" ? 2 : 3,
+      }),
+      description: "Use the ids returned from the entity creation calls for source_entity and target_entity.",
+    },
+    {
+      title: "Set match status",
+      method: "POST" as const,
+      path: "match-features/",
+      body: () => ({
+        match: "<match_id>",
+        label: "status",
+        value_text: draft.status,
+      }),
+    },
+  ];
+
   return (
     <Card className="h-fit">
       <CardHeader>
-        <CardTitle>Add a manual match</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Add a manual match</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="Match API" />
+        </div>
         <CardDescription>Drop in curated connections to jump-start workflows.</CardDescription>
       </CardHeader>
       <CardContent>

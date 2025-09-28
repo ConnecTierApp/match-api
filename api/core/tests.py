@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import Document, DocumentChunk, EntityType, Workspace
+from .models import Document, DocumentChunk, EntityType, MatchingJobTarget, Workspace
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -156,17 +156,9 @@ class CoreCrudFlowTests(APITestCase):
         self.assertEqual(job_response.status_code, status.HTTP_201_CREATED)
         job_id = job_response.data["id"]
 
-        job_target_payload = {
-            "matching_job": job_id,
-            "entity": target_entity_id,
-            "ranking_hint": 0.5,
-        }
-        target_response = self.client.post(
-            reverse("core:matchingjobtarget-list"),
-            data=job_target_payload,
-            format="json",
-        )
-        self.assertEqual(target_response.status_code, status.HTTP_201_CREATED)
+        targets = MatchingJobTarget.objects.filter(matching_job_id=job_id)
+        self.assertEqual(targets.count(), 1)
+        self.assertEqual(str(targets.first().entity_id), target_entity_id)
 
         match_payload = {
             "matching_job": job_id,

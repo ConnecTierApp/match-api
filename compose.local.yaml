@@ -27,7 +27,7 @@ services:
       file: compose.yaml
     volumes:
       - ./api:/app
-    command: sh -c "pip install watchdog && watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A config worker -l info"
+    command: sh -c "pip install watchdog && watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A config worker -l debug"
 
 
 volumes:

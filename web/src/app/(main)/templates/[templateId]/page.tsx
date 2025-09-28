@@ -25,6 +25,7 @@ import { useJobs } from "@/modules/jobs/hooks/use-jobs";
 import { useMatches } from "@/modules/matches/hooks/use-matches";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
 import { useEntityOptions } from "@/modules/entities/hooks/use-entities";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 export default function TemplateDetailPage() {
   const params = useParams<{ templateId: string }>();
@@ -32,6 +33,21 @@ export default function TemplateDetailPage() {
   const { data: jobs } = useJobs();
   const { data: matches } = useMatches();
   const { options: entityTypeOptions } = useEntityOptions();
+
+  const developerRequests = [
+    {
+      title: "Get template",
+      method: "GET" as const,
+      path: `matching-templates/${params.templateId}/`,
+    },
+    {
+      title: "List jobs",
+      method: "GET" as const,
+      path: "matching-jobs/",
+      params: { template: params.templateId },
+      description: "Filter matching jobs using the template id as a query parameter.",
+    },
+  ];
 
   const typeLabelBySlug = useMemo(() => {
     const map = new Map<string, string>();
@@ -64,14 +80,17 @@ export default function TemplateDetailPage() {
     <div className="grid gap-6">
       <Card>
         <CardHeader className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="uppercase tracking-wide">
-              {typeLabelBySlug.get(template.defaultSource) ?? template.defaultSource}
-            </Badge>
-            <span className="text-muted-foreground">→</span>
-            <Badge variant="outline" className="uppercase tracking-wide">
-              {typeLabelBySlug.get(template.defaultTarget) ?? template.defaultTarget}
-            </Badge>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="uppercase tracking-wide">
+                {typeLabelBySlug.get(template.defaultSource) ?? template.defaultSource}
+              </Badge>
+              <span className="text-muted-foreground">→</span>
+              <Badge variant="outline" className="uppercase tracking-wide">
+                {typeLabelBySlug.get(template.defaultTarget) ?? template.defaultTarget}
+              </Badge>
+            </div>
+            <DeveloperApiModal requests={developerRequests} triggerLabel="Template API" />
           </div>
           <CardTitle className="text-2xl">{template.name}</CardTitle>
           <CardDescription>{template.description}</CardDescription>

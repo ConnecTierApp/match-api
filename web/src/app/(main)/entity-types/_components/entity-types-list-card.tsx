@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityTypeDefinition } from "@/types/matching";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 interface EntityTypesListCardProps {
   entityTypes: EntityTypeDefinition[];
@@ -16,10 +17,21 @@ export function EntityTypesListCard({ entityTypes }: EntityTypesListCardProps) {
     [entityTypes],
   );
 
+  const developerRequests = [
+    {
+      title: "List entity types",
+      method: "GET" as const,
+      path: "entity-types/",
+    },
+  ];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entity types</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Entity types</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="View list API" />
+        </div>
         <CardDescription>Workspace-wide taxonomy used by templates and jobs.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

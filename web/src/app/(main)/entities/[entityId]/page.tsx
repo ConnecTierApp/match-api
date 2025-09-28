@@ -49,8 +49,9 @@ export default function EntityDetailPage() {
   return (
     <div className="grid gap-6">
       <EntitySummaryCard entity={entity} onUpdateSummary={handleSummaryUpdate} onDelete={handleDeleteEntity} />
-      <EntityAttachDocumentCard onAttach={handleAttachDocument} />
+      <EntityAttachDocumentCard entityId={entity.id} onAttach={handleAttachDocument} />
       <EntityDocumentsCard
+        entityId={entity.id}
         documents={documents}
         isLoading={isLoadingDocuments}
         onUpdateDocument={handleUpdateDocument}

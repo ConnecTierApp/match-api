@@ -52,6 +52,10 @@ class CriterionEvaluation:
     criterion_label: str
     rating: MatchRating
     reason: str
+    rating_prompt: str | None = None
+    rating_response: str | None = None
+    reasoning_prompt: str | None = None
+    reasoning_response: str | None = None
 
 
 @dataclass(slots=True)
@@ -131,6 +135,10 @@ def evaluate_target(
                 criterion_label=criterion.label,
                 rating=rating,
                 reason=reasoning.strip(),
+                rating_prompt=prompt,
+                rating_response=response,
+                reasoning_prompt=reasoning_prompt,
+                reasoning_response=reasoning,
             )
         )
 

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEntityDocumentSearch } from "@/modules/entities/hooks/use-entity-document-search";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 
 function parseTags(value: string) {
   return value
@@ -34,10 +35,29 @@ export function DocumentsSearchCard() {
     tags: parseTags(tagsInput),
   });
 
+  const developerRequests = [
+    {
+      title: "List documents",
+      method: "GET" as const,
+      path: "documents/",
+      params: () => {
+        const tags = parseTags(tagsInput);
+        return {
+          search: query.trim() || undefined,
+          tags: tags.length ? tags.join(",") : undefined,
+        };
+      },
+      description: "Fetch documents attached to entities. Filter client-side by search text and tags.",
+    },
+  ];
+
   return (
     <Card id="search-documents">
       <CardHeader>
-        <CardTitle>Search entity documents</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Search entity documents</CardTitle>
+          <DeveloperApiModal requests={developerRequests} triggerLabel="View search API" />
+        </div>
         <CardDescription>
           Filter briefs, decks, and notes linked to your entities. Leave fields blank to see the latest attachments.
         </CardDescription>
