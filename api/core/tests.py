@@ -1,12 +1,16 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import override_settings
+from django.contrib.admin.sites import AdminSite
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.test import RequestFactory, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from .admin import DocumentChunkAdmin
 from .models import Document, DocumentChunk, EntityType, MatchingJobTarget, Workspace
+from .tasks import calculate_text_checksum
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -47,8 +51,10 @@ class CoreCrudFlowTests(APITestCase):
         self.mock_collection = MagicMock()
         self.mock_collection.data.insert = MagicMock()
         self.mock_collection.data.replace = MagicMock()
+        self.mock_collection.data.delete_by_id = MagicMock()
         self.weaviate_client.collections = MagicMock()
         self.weaviate_client.collections.get.return_value = self.mock_collection
+        self.weaviate_client.collections.exists.return_value = True
         self.mock_get_weaviate.return_value = self.weaviate_client
 
         self.mock_fetch_markdown.return_value = "# Auto Fetched Body"
@@ -193,3 +199,104 @@ class CoreCrudFlowTests(APITestCase):
         list_response = self.client.get(reverse("core:match-list"))
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(list_response.data), 1)
+
+    def test_chunk_update_and_delete_syncs_weaviate(self):
+        entity = self.workspace.entities.create(
+            entity_type=self.candidate_type,
+            name="Sync Subject",
+        )
+        document = Document.objects.create(
+            entity=entity,
+            source="manual",
+            title="Profile",
+            body="Initial chunk text",
+            scrape_status=Document.ScrapeStatus.COMPLETED,
+        )
+
+        document.refresh_from_db()
+        chunk = document.chunks.get()
+
+        self.assertEqual(
+            chunk.metadata.get("text_checksum"),
+            calculate_text_checksum("Initial chunk text"),
+        )
+
+        # Creation should insert a new vector.
+        self.embedding_client.embeddings.create.assert_called_once()
+        self.mock_collection.data.insert.assert_called_once()
+
+        # Updating text triggers a re-embed (replace in Weaviate).
+        self.embedding_client.embeddings.create.reset_mock()
+        self.mock_collection.data.insert.reset_mock()
+        self.mock_collection.data.replace.reset_mock()
+
+        chunk.text = "Updated chunk text"
+        chunk.save(update_fields=["text"])
+
+        self.embedding_client.embeddings.create.assert_called_once()
+        self.mock_collection.data.replace.assert_called_once()
+        self.mock_collection.data.insert.assert_not_called()
+
+        chunk.refresh_from_db()
+        self.assertEqual(
+            chunk.metadata.get("text_checksum"),
+            calculate_text_checksum("Updated chunk text"),
+        )
+
+        # Saving metadata only should not retrigger embedding.
+        self.embedding_client.embeddings.create.reset_mock()
+        chunk.refresh_from_db()
+        chunk.metadata = {**(chunk.metadata or {}), "synced": True}
+        chunk.save(update_fields=["metadata"])
+        self.embedding_client.embeddings.create.assert_not_called()
+
+        # Deleting the chunk should remove the vector.
+        vector_id = chunk.weaviate_vector_id
+        self.mock_collection.data.delete_by_id.reset_mock()
+        chunk.delete()
+        self.mock_collection.data.delete_by_id.assert_called_once_with(uuid=vector_id)
+
+    def test_admin_sync_chunks_action_skips_up_to_date(self):
+        entity = self.workspace.entities.create(
+            entity_type=self.candidate_type,
+            name="Admin Sync",
+        )
+        base_document = Document.objects.create(
+            entity=entity,
+            source="manual",
+            title="Baseline",
+            body="Baseline chunk text",
+            scrape_status=Document.ScrapeStatus.COMPLETED,
+        )
+        base_chunk = base_document.chunks.get()
+
+        stale_document = Document.objects.create(
+            entity=entity,
+            source="manual",
+            title="Needs Sync",
+            body="Needs sync chunk text",
+            scrape_status=Document.ScrapeStatus.COMPLETED,
+        )
+        stale_chunk = stale_document.chunks.get()
+        stale_chunk.metadata = {}
+        stale_chunk.save(update_fields=["metadata"])
+
+        factory = RequestFactory()
+        request = factory.post("/admin/core/documentchunk/")
+        request.user = SimpleNamespace(is_staff=True, is_active=True)
+        request.session = {}
+        messages_storage = FallbackStorage(request)
+        setattr(request, "_messages", messages_storage)
+
+        admin_site = AdminSite()
+        chunk_admin = DocumentChunkAdmin(DocumentChunk, admin_site)
+        chunk_admin.message_user = MagicMock()
+
+        with patch("core.admin.embed_document_chunk_task.delay") as mock_delay:
+            chunk_admin.sync_with_weaviate(
+                request,
+                DocumentChunk.objects.filter(id__in=[base_chunk.id, stale_chunk.id]),
+            )
+
+        mock_delay.assert_called_once_with(str(stale_chunk.id))
+        chunk_admin.message_user.assert_called_once()

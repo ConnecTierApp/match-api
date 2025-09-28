@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 
-from core.models import DocumentChunk, Entity
+from core.models import DocumentChunk, Entity, MatchingSearchLog
 
 from .interfaces import VectorSearchHit, VectorSearcher
 from .planning import SearchCriterion, SearchPlan
 
+if TYPE_CHECKING:  # pragma: no cover
+    from .audit import MatchingJobAuditRecorder
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +56,7 @@ def collect_source_snippets(
     searcher: VectorSearcher,
     workspace_id: str,
     source_entity: Entity,
+    audit: "MatchingJobAuditRecorder | None" = None,
 ) -> dict[str, list[VectorSearchHit]]:
     """Retrieve representative chunks from the source entity per criterion.
 
@@ -79,6 +82,17 @@ def collect_source_snippets(
             criterion.id,
             source_entity.id,
         )
+        if audit:
+            from .audit import build_search_context
+
+            context = build_search_context(
+                criterion=criterion,
+                query_type=MatchingSearchLog.QueryType.SOURCE,
+                query_text=criterion.prompt,
+                limit=criterion.source_snippet_limit,
+                filters={"entity_id": str(source_entity.id)},
+            )
+            audit.record_search(context=context, hits=hits)
         snippets[criterion.id] = hits
     return snippets
 
@@ -89,6 +103,7 @@ def collect_target_matches(
     searcher: VectorSearcher,
     workspace_id: str,
     targets: Iterable[Entity],
+    audit: "MatchingJobAuditRecorder | None" = None,
 ) -> list[TargetSearchSummary]:
     """Retrieve the best matching chunks per target entity.
 
@@ -120,6 +135,18 @@ def collect_target_matches(
                 target.id,
                 criterion.id,
             )
+            if audit:
+                from .audit import build_search_context
+
+                context = build_search_context(
+                    criterion=criterion,
+                    query_type=MatchingSearchLog.QueryType.TARGET,
+                    query_text=criterion.prompt,
+                    limit=criterion.target_snippet_limit,
+                    filters={"entity_id": str(target.id)},
+                    target_id=str(target.id),
+                )
+                audit.record_search(context=context, hits=search_hits)
             hits.extend(
                 CriterionHit(criterion=criterion, chunk=hit.chunk, score=hit.score)
                 for hit in search_hits

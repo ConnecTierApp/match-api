@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
-import { Entity, Template } from "@/types/matching";
-import { JobInput, JobStatus } from "@/types/matching";
+import { Entity, Job, JobInput, JobStatus, Template } from "@/types/matching";
 import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
 import { JOB_STATUS_TO_API } from "@/modules/jobs/lib/api";
 
@@ -34,7 +34,7 @@ interface LaunchJobCardProps {
   isLoadingEntityTypes: boolean;
   disableSelection?: boolean;
   defaultTemplateId?: string | null;
-  onCreate: (input: JobInput) => Promise<void> | void;
+  onCreate: (input: JobInput) => Promise<Job>;
 }
 
 type JobDraft = {
@@ -64,6 +64,7 @@ export function LaunchJobCard({
   defaultTemplateId,
   onCreate,
 }: LaunchJobCardProps) {
+  const router = useRouter();
   const preferredTemplate = useMemo(() => {
     if (defaultTemplateId) {
       return templates.find((template) => template.id === defaultTemplateId) ?? templates[0] ?? null;
@@ -117,7 +118,7 @@ export function LaunchJobCard({
 
     setIsSubmitting(true);
     try {
-      await onCreate({
+      const createdJob = await onCreate({
         displayName: draft.displayName,
         templateId: draft.templateId,
         sourceEntityId: draft.sourceEntityId,
@@ -125,6 +126,10 @@ export function LaunchJobCard({
         notes: draft.notes,
         status: draft.status,
       });
+
+      if (createdJob?.id) {
+        router.push(`/jobs/${createdJob.id}`);
+      }
 
       setDraft((previous) => ({
         ...initialDraft,

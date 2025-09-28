@@ -7,6 +7,7 @@ source entity, its documents, and the same bundle for each candidate target.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from django.db.models import Prefetch
@@ -19,6 +20,9 @@ from core.models import (
 )
 
 from .configuration import MatchingConfiguration, merge_configurations
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -92,9 +96,6 @@ class MatchingJobContext:
             "template",
             "source_entity",
         ).prefetch_related("targets__entity").get(pk=job.pk)
-
-        # log target entities
-        logger.info("Target entities: %s", [target.entity.id for target in job.targets.all()])
 
         # Templates capture the baseline behaviour; the job override allows ad-hoc
         # tweaks (e.g., filtering criteria) without mutating the saved template.

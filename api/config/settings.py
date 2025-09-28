@@ -48,6 +48,11 @@ ALLOWED_HOSTS = [
 
 ALLOWED_HOSTS += get_private_ips() # Add private IPs so the health check can pass
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://match.connectier.app',
+    'https://api.match.connectier.app',
+]
+
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
 

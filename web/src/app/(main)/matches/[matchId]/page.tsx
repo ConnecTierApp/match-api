@@ -72,7 +72,7 @@ export default function MatchDetailPage() {
       method: "PATCH" as const,
       path: `matches/${match?.id}/`,
       body: () => ({
-        score: formState.score > 1 ? formState.score / 100 : formState.score,
+        score: (formState.score ?? 0) > 1 ? (formState.score ?? 0) / 100 : (formState.score ?? 0),
         explanation: formState.summary,
       }),
     },

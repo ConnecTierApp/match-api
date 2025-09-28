@@ -8,16 +8,17 @@ import {
   createJobApi,
   deleteJobApi,
   fetchJob,
+  mapApiJob,
   updateJobApi,
 } from "@/modules/jobs/lib/api";
 import { MATCHES_KEY } from "@/modules/matches/hooks/use-matches";
-import { JobInput, JobUpdate } from "@/types/matching";
-import type { JobConfig, UpdateJobPayload } from "@/modules/jobs/lib/api";
+import { Job, JobInput, JobUpdate } from "@/types/matching";
+import type { ApiJob, JobConfig, UpdateJobPayload } from "@/modules/jobs/lib/api";
 
 export function useJobMutations() {
   const { mutate } = useSWRConfig();
 
-  const createJob = async (input: JobInput) => {
+  const createJob = async (input: JobInput): Promise<Job> => {
     const displayName = input.displayName.trim() ? input.displayName.trim() : `${input.templateId} job`;
 
     const configOverride = buildJobConfigFromInput({
@@ -25,14 +26,33 @@ export function useJobMutations() {
       displayName,
     });
 
-    await createJobApi({
+    const apiJob = await createJobApi({
       templateId: input.templateId,
       sourceEntityId: input.sourceEntityId,
       status: input.status ?? "Queued",
       configOverride,
     });
 
+    await mutate<ApiJob[] | undefined>(
+      JOBS_KEY,
+      (current) => {
+        if (!current) {
+          return [apiJob];
+        }
+        const existingIndex = current.findIndex((job) => job.id === apiJob.id);
+        if (existingIndex >= 0) {
+          const next = [...current];
+          next[existingIndex] = apiJob;
+          return next;
+        }
+        return [apiJob, ...current];
+      },
+      false,
+    );
+
     await Promise.all([mutate(JOBS_KEY), mutate(ENTITIES_KEY)]);
+
+    return mapApiJob(apiJob);
   };
 
   const updateJob = async (id: string, input: JobUpdate) => {

@@ -13,6 +13,7 @@ from collections import Counter
 
 from core.models import MatchingJob
 
+from .audit import MatchingJobAuditRecorder
 from .context import MatchingJobContext
 from .events import MatchingJobEventPublisher, NullMatchingJobEventPublisher
 from .evaluation import TargetEvaluation, evaluate_target
@@ -55,6 +56,15 @@ def run_matching_job(
         [bundle.entity.id for bundle in ctx.targets],
     )
     plan = SearchPlanBuilder(ctx.matching_config).build()
+    audit = MatchingJobAuditRecorder.start(
+        job=job,
+        plan=plan,
+        matching_config_snapshot={
+            "template": ctx.template_config,
+            "job_override": ctx.job_config,
+            "matching": ctx.matching_config.to_dict(),
+        },
+    )
     logger.debug(
         "Search plan prepared with %s criteria: %s",
         len(plan.criteria),
@@ -65,45 +75,48 @@ def run_matching_job(
     # Pull the most representative source snippets so the LLM understands what
     # "good" looks like before we evaluate targets. This also ensures the same
     # text is reused across all target comparisons for consistency.
-    source_hits = collect_source_snippets(
-        plan=plan,
-        searcher=vector_searcher,
-        workspace_id=ctx.workspace_id,
-        source_entity=ctx.source.entity,
-    )
-    logger.debug(
-        "Source snippets collected: %s",
-        {criterion_id: len(hits) for criterion_id, hits in source_hits.items()},
-    )
-    active_publisher.source_snippets_prepared(
-        counts={criterion_id: len(hits) for criterion_id, hits in source_hits.items()}
-    )
-
-    source_snippets = {
-        criterion_id: [hit.chunk.text for hit in hits]
-        for criterion_id, hits in source_hits.items()
-    }
-
-    # Run the same searches across each target entity so everyone is measured
-    # against identical criteria.
-    target_summaries = collect_target_matches(
-        plan=plan,
-        searcher=vector_searcher,
-        workspace_id=ctx.workspace_id,
-        targets=[bundle.entity for bundle in ctx.targets],
-    )
-    logger.debug(
-        "Target summaries collected: %s",
-        {summary.target.id: summary.hit_count() for summary in target_summaries},
-    )
-
     candidates: list[MatchCandidate] = []
-    for summary in target_summaries:
-        hits_per_criterion = Counter(hit.criterion.id for hit in summary.hits)
+    try:
+        source_hits = collect_source_snippets(
+            plan=plan,
+            searcher=vector_searcher,
+            workspace_id=ctx.workspace_id,
+            source_entity=ctx.source.entity,
+            audit=audit,
+        )
         logger.debug(
-            "Evaluating target %s (%s hits per criterion: %s)",
-            summary.target.id,
-            summary.hit_count(),
+            "Source snippets collected: %s",
+            {criterion_id: len(hits) for criterion_id, hits in source_hits.items()},
+        )
+        active_publisher.source_snippets_prepared(
+            counts={criterion_id: len(hits) for criterion_id, hits in source_hits.items()}
+        )
+
+        source_snippets = {
+            criterion_id: [hit.chunk.text for hit in hits]
+            for criterion_id, hits in source_hits.items()
+        }
+
+        # Run the same searches across each target entity so everyone is measured
+        # against identical criteria.
+        target_summaries = collect_target_matches(
+            plan=plan,
+            searcher=vector_searcher,
+            workspace_id=ctx.workspace_id,
+            targets=[bundle.entity for bundle in ctx.targets],
+            audit=audit,
+        )
+        logger.debug(
+            "Target summaries collected: %s",
+            {summary.target.id: summary.hit_count() for summary in target_summaries},
+        )
+
+        for summary in target_summaries:
+            hits_per_criterion = Counter(hit.criterion.id for hit in summary.hits)
+            logger.debug(
+                "Evaluating target %s (%s hits per criterion: %s)",
+                summary.target.id,
+                summary.hit_count(),
             dict(hits_per_criterion),
         )
         active_publisher.target_search_completed(
@@ -134,6 +147,11 @@ def run_matching_job(
             evaluation.coverage(plan),
             hit_ratio,
         )
+        audit.record_evaluation(
+            summary=summary,
+            evaluation=evaluation,
+            hit_ratio=hit_ratio,
+        )
         candidate = MatchCandidate(
             target=summary.target,
             evaluation=evaluation,
@@ -148,7 +166,12 @@ def run_matching_job(
         )
         candidates.append(candidate)
 
+    except Exception as exc:
+        audit.finalize_failure(error_message=str(exc))
+        raise
+
     logger.info("Matching job %s produced %s candidates", job.id, len(candidates))
+    audit.finalize_success(candidates=candidates)
     return candidates
 
 

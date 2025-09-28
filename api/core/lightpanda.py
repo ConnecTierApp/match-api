@@ -187,7 +187,7 @@ def fetch_markdown(url: str) -> str:
     if not api_key:
         raise LightpandaError("LIGHTPANDA_API_KEY is not configured")
 
-    ws_endpoint = f"wss://cloud.lightpanda.io/ws?token={api_key}"
+    ws_endpoint = f"wss://cloud.lightpanda.io/ws?token={api_key}&browser=chrome"
 
     print("Lightpanda endpoint:", ws_endpoint)
 

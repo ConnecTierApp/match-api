@@ -15,6 +15,7 @@ from typing import Iterable
 from .interfaces import LanguageModel
 from .planning import SearchPlan
 from .search import CriterionHit, TargetSearchSummary
+from core.models import DocumentChunk
 
 
 class MatchRating(Enum):
@@ -105,19 +106,55 @@ def evaluate_target(
 
     for criterion in plan.criteria:
         hits = grouped_hits.get(criterion.id, [])
-        if not hits:
-            # No vector hits means we cannot fairly grade this criterion yet.
-            continue
 
+        # Prepare source context (always available even if empty)
         source_texts = list(source_snippets.get(criterion.id, []))
         source_text = "\n".join(source_texts[: criterion.source_snippet_limit]) or "(no source context found)"
-        target_text = "\n".join(hit.chunk.text for hit in hits[: criterion.target_snippet_limit])
 
+        # If there are no vector hits, fall back to generic target snippets to keep the
+        # evaluation and reasoning non-empty for auditability.
+        used_fallback = False
+        effective_target_text = ""
+        if hits:
+            effective_target_text = "\n".join(
+                hit.chunk.text for hit in hits[: criterion.target_snippet_limit]
+            )
+        else:
+            fallback_chunks = list(
+                DocumentChunk.objects.filter(
+                    document__entity_id=target_summary.target.id
+                )
+                .order_by("document__created_at", "chunk_index")[: criterion.target_snippet_limit]
+            )
+            if fallback_chunks:
+                used_fallback = True
+                effective_target_text = "\n".join(chunk.text for chunk in fallback_chunks)
+
+        # If we still have no target context at all, synthesize a BAD rating with a clear reason.
+        if not effective_target_text.strip():
+            evaluations.append(
+                CriterionEvaluation(
+                    criterion_id=criterion.id,
+                    criterion_label=criterion.label,
+                    rating=MatchRating.BAD,
+                    reason=(
+                        f"No target content available for criterion '{criterion.label}'. "
+                        f"Source excerpt: {_excerpt(source_text)}"
+                    ),
+                    rating_prompt="",
+                    rating_response="",
+                    reasoning_prompt="",
+                    reasoning_response="",
+                )
+            )
+            continue
+
+        # Normal LLM flow (rating then reasoning)
         prompt = _build_prompt(
             criterion_label=criterion.label,
             guidance=criterion.guidance,
             source_text=source_text,
-            target_text=target_text,
+            target_text=effective_target_text,
         )
         response = llm.structured_match_review(prompt=prompt)
         rating = MatchRating.from_response(response)
@@ -126,15 +163,31 @@ def evaluate_target(
             criterion_label=criterion.label,
             initial_rating=rating.name,
             source_text=source_text,
-            target_text=target_text,
+            target_text=effective_target_text,
         )
-        reasoning = llm.structured_match_review(prompt=reasoning_prompt)
+        reasoning = (llm.structured_match_review(prompt=reasoning_prompt) or "").strip()
+
+        # Ensure a non-empty reason is always present.
+        if not reasoning:
+            if used_fallback:
+                reasoning = (
+                    f"No vector hits for '{criterion.label}'; used fallback target excerpts. "
+                    f"Target excerpt: {_excerpt(effective_target_text)} | "
+                    f"Source excerpt: {_excerpt(source_text)}"
+                )
+            else:
+                reasoning = (
+                    f"Rating {rating.name} for '{criterion.label}'. "
+                    f"Target excerpt: {_excerpt(effective_target_text)} | "
+                    f"Source excerpt: {_excerpt(source_text)}"
+                )
+
         evaluations.append(
             CriterionEvaluation(
                 criterion_id=criterion.id,
                 criterion_label=criterion.label,
                 rating=rating,
-                reason=reasoning.strip(),
+                reason=reasoning,
                 rating_prompt=prompt,
                 rating_response=response,
                 reasoning_prompt=reasoning_prompt,
@@ -170,7 +223,7 @@ def _build_reasoning_prompt(
     initial_rating: str,
     source_text: str,
     target_text: str,
-) -> str:
+    ) -> str:
     """Construct the follow-up reasoning prompt.
 
     By issuing a separate reasoning request we keep the first response terse,
@@ -187,3 +240,12 @@ def _build_reasoning_prompt(
         f"{target_text}\n"
         "Respond with 1-2 sentences."
     )
+
+
+def _excerpt(text: str, *, max_len: int = 180) -> str:
+    """Return a compact excerpt suitable for inline reasons."""
+
+    compact = " ".join((text or "").split())
+    if len(compact) <= max_len:
+        return compact
+    return compact[: max_len - 1] + "…"

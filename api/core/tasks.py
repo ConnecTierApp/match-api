@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ except ImportError:  # pragma: no cover - defensive default if dependency change
 
 
 WEAVIATE_DOCUMENT_CHUNKS_COLLECTION_NAME = "DocumentChunk";
+EMBEDDING_MODEL_NAME = "text-embedding-3-small"
 
 def _int_from_env(name: str, default: int) -> int:
     """Return an integer environment variable, falling back to default."""
@@ -61,6 +63,28 @@ def _split_text(text: str, chunk_size: int, overlap: int) -> List[Tuple[str, int
         start = max(0, end - overlap)
 
     return chunks
+
+
+def calculate_text_checksum(text: str) -> str:
+    """Return a stable checksum for chunk text used to detect drift."""
+
+    normalized = (text or "").encode("utf-8")
+    return hashlib.sha1(normalized).hexdigest()
+
+
+def chunk_requires_weaviate_sync(chunk: DocumentChunk) -> bool:
+    """Determine whether a chunk should be re-synced with Weaviate."""
+
+    metadata = chunk.metadata or {}
+    if not chunk.weaviate_vector_id:
+        return True
+    if metadata.get("embedding_model") != EMBEDDING_MODEL_NAME:
+        return True
+    if metadata.get("text_checksum") != calculate_text_checksum(chunk.text):
+        return True
+    if metadata.get("embedding_dimensions") is None:
+        return True
+    return False
 
 
 logger = logging.getLogger(__name__)
@@ -191,7 +215,7 @@ def embed_document_chunk_task(self, chunk_id: str) -> None:
         logger.warning("embed_document_chunk_task skipped missing chunk %s", chunk_id)
         return
 
-    model_name = "text-embedding-3-small"
+    model_name = EMBEDDING_MODEL_NAME
 
     try:
         embedding_client = get_embedding_client()
@@ -214,6 +238,7 @@ def embed_document_chunk_task(self, chunk_id: str) -> None:
         {
             "embedding_model": model_name,
             "embedding_dimensions": len(vector),
+            "text_checksum": calculate_text_checksum(chunk.text),
         }
     )
     weaviate_id = chunk.weaviate_vector_id or str(chunk.id)
@@ -254,3 +279,60 @@ def embed_document_chunk_task(self, chunk_id: str) -> None:
         chunk.save(update_fields=["weaviate_vector_id", "metadata", "updated_at"])
 
     logger.info("Embedded chunk %s into Weaviate object %s", chunk_id, weaviate_id)
+
+
+@shared_task(bind=True)
+def delete_document_chunk_vector_task(self, chunk_id: str, weaviate_vector_id: str) -> None:
+    """Remove a chunk vector from Weaviate when the Django record is deleted."""
+
+    if not weaviate_vector_id:
+        logger.debug(
+            "delete_document_chunk_vector_task skipped chunk %s without vector id",
+            chunk_id,
+        )
+        return
+
+    weaviate_client = get_weaviate_client()
+
+    try:
+        collections_api = weaviate_client.collections
+        if hasattr(collections_api, "exists") and not collections_api.exists(
+            WEAVIATE_DOCUMENT_CHUNKS_COLLECTION_NAME
+        ):
+            logger.debug(
+                "Weaviate collection %s missing when deleting chunk %s; skipping",
+                WEAVIATE_DOCUMENT_CHUNKS_COLLECTION_NAME,
+                chunk_id,
+            )
+            return
+        collection = collections_api.get(WEAVIATE_DOCUMENT_CHUNKS_COLLECTION_NAME)
+    except WeaviateBaseError as exc:
+        logger.warning(
+            "Failed to resolve Weaviate collection for chunk %s: %s",
+            chunk_id,
+            exc,
+        )
+        return
+
+    try:
+        collection.data.delete_by_id(uuid=weaviate_vector_id)
+        logger.info(
+            "Deleted Weaviate object %s for chunk %s",
+            weaviate_vector_id,
+            chunk_id,
+        )
+    except WeaviateBaseError as exc:
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 404:
+            logger.debug(
+                "Weaviate object %s already absent for chunk %s",
+                weaviate_vector_id,
+                chunk_id,
+            )
+            return
+        logger.warning(
+            "Weaviate error deleting object %s for chunk %s: %s",
+            weaviate_vector_id,
+            chunk_id,
+            exc,
+        )

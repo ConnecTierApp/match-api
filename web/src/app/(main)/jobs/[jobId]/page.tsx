@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,13 @@ import {
 } from "@/components/ui/table";
 import { useJob } from "@/modules/jobs/hooks/use-job";
 import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
+import { useJobStream } from "@/modules/jobs/hooks/use-job-stream";
 import { useMatchesByJob } from "@/modules/matches/hooks/use-matches-by-job";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
 
 import { DeveloperApiModal } from "@/modules/developer-examples/components/developer-api-modal";
-import { JOB_STATUS_TO_API } from "@/modules/jobs/lib/api";
+import { JOB_STATUS_FROM_API, JOB_STATUS_TO_API } from "@/modules/jobs/lib/api";
+import { JobUpdatesFeed } from "./components/job-updates-feed/job-updates-feed";
 
 export default function JobDetailPage() {
   const params = useParams<{ jobId: string }>();
@@ -35,9 +37,28 @@ export default function JobDetailPage() {
   const template = useTemplate(job?.templateId);
   const { data: matches } = useMatchesByJob(job?.id);
   const { updateJob, deleteJob } = useJobMutations();
+  const stream = useJobStream(params.jobId);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const displayStatus = useMemo(() => {
+    if (stream.status) {
+      const label = JOB_STATUS_FROM_API[stream.status.status] ?? job?.status;
+      return label ?? "Queued";
+    }
+    return job?.status ?? "Queued";
+  }, [job?.status, stream.status]);
+
+  const statusVariant = displayStatus === "Completed"
+    ? "success"
+    : displayStatus === "Scoring"
+    ? "warning"
+    : displayStatus === "Failed"
+    ? "destructive"
+    : "secondary";
+
+  const displayErrorMessage = stream.status?.errorMessage ?? job?.errorMessage;
 
   const developerRequests = job
     ? [
@@ -94,9 +115,7 @@ export default function JobDetailPage() {
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-3">
-            <Badge variant={job.status === "Completed" ? "success" : job.status === "Scoring" ? "warning" : "secondary"}>
-              {job.status}
-            </Badge>
+            <Badge variant={statusVariant}>{displayStatus}</Badge>
             <span className="text-xs text-muted-foreground">
               Created {new Date(job.createdAt).toLocaleDateString()}
             </span>
@@ -130,8 +149,8 @@ export default function JobDetailPage() {
           {job.notes ? (
             <span className="italic text-muted-foreground/80">“{job.notes}”</span>
           ) : null}
-          {job.errorMessage ? (
-            <span className="text-destructive">Error: {job.errorMessage}</span>
+          {displayErrorMessage ? (
+            <span className="text-destructive">Error: {displayErrorMessage}</span>
           ) : null}
         </CardContent>
       </Card>
@@ -210,6 +229,12 @@ export default function JobDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <JobUpdatesFeed
+        events={stream.events}
+        connectionState={stream.connectionState}
+        error={stream.error}
+      />
     </div>
   );
 }

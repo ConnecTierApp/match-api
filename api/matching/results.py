@@ -37,7 +37,20 @@ class MatchCandidate:
         """Combine per-criterion reasons into a human-readable summary."""
 
         parts = [evaluation.reason for evaluation in self.evaluation.evaluations if evaluation.reason]
-        return "\n".join(parts)
+        if parts:
+            return "\n".join(parts)
+
+        # Fallback: ensure something meaningful is returned even if LLM reasons were empty.
+        if self.evaluation.evaluations:
+            ratings = ", ".join(
+                f"{e.criterion_label}={e.rating.name}" for e in self.evaluation.evaluations
+            )
+            return f"Evaluated criteria but no explanations returned. Ratings: {ratings}."
+
+        return (
+            "No evidence found or target content unavailable for the configured criteria. "
+            "Consider adding documents or adjusting criteria."
+        )
 
     def to_dict(self) -> dict:
         """Serialise the candidate into a transport-friendly payload."""
