@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Code } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "WS";
 
 type Serializable = Record<string, unknown> | Array<unknown> | string | number | boolean | null;
 
@@ -21,6 +22,8 @@ export interface DeveloperApiRequest {
   params?: ValueResolver<Record<string, string | number | boolean | null | undefined>>;
   headers?: ValueResolver<Record<string, string | number | boolean | null | undefined>>;
   body?: ValueResolver<Serializable | undefined>;
+  methodLabel?: string;
+  codeSamples?: Partial<Record<Language, ValueResolver<string>>>;
 }
 
 interface DeveloperApiModalProps {
@@ -35,12 +38,14 @@ type Language = "curl" | "python" | "javascript" | "go";
 interface NormalizedRequest {
   title: string;
   method: HttpMethod;
+  methodLabel: string;
   url: string;
   queryString: string;
   fullUrl: string;
   headers: Record<string, string>;
   body?: Serializable;
   description?: string;
+  codeSamples?: Partial<Record<Language, string>>;
 }
 
 const DEFAULT_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
@@ -61,6 +66,7 @@ export function DeveloperApiModal({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRequestIndex, setSelectedRequestIndex] = useState(0);
   const [language, setLanguage] = useState<Language>("curl");
+  const [isMounted, setIsMounted] = useState(false);
 
   const normalized = useMemo(() => {
     return requests.map((request) => normalizeRequest(request));
@@ -77,6 +83,93 @@ export function DeveloperApiModal({
   const codeSample = currentRequest ? buildCodeSample(currentRequest, language) : "";
   const hasRequests = normalized.length > 0;
 
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
+
+  const modalContent = !isOpen || !hasRequests
+    ? null
+    : (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur"
+          onClick={() => setIsOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="max-h-[calc(100vh-3rem)] overflow-y-auto">
+              <div className="flex flex-col gap-6 p-6">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-foreground">API reference</h2>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Mirror the UI action with a REST call. Examples reuse your current field values when available.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {normalized.map((request, index) => {
+                      const isActive = index === selectedRequestIndex;
+                      return (
+                        <button
+                          key={`${request.method}-${request.fullUrl}-${index}`}
+                          type="button"
+                          onClick={() => setSelectedRequestIndex(index)}
+                          className={cn(
+                            "rounded-md border px-3 py-1 text-xs font-medium transition",
+                            isActive
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70",
+                          )}
+                        >
+                          <span className="uppercase tracking-wide text-[0.65rem] text-muted-foreground/90">
+                            {request.methodLabel}
+                          </span>
+                          <span className="ml-2 text-xs text-foreground">{request.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {currentRequest?.description ? (
+                    <p className="text-xs text-muted-foreground/80">{currentRequest.description}</p>
+                  ) : null}
+                  {currentRequest ? (
+                    <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-foreground">
+                          {currentRequest.methodLabel} {currentRequest.fullUrl}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <Tabs value={language} onValueChange={(value) => setLanguage(value as Language)}>
+                  <TabsList className="flex flex-wrap gap-2 bg-muted/40 p-1">
+                    {LANGUAGES.map((item) => (
+                      <TabsTrigger key={item.id} value={item.id} className="text-xs">
+                        {item.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <TabsContent value={language} className="mt-4">
+                    <pre className="max-h-[420px] overflow-auto rounded-lg bg-muted/40 p-4 text-xs leading-relaxed text-foreground">
+                      <code>{codeSample}</code>
+                    </pre>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
   return (
     <>
       <Button
@@ -91,81 +184,7 @@ export function DeveloperApiModal({
         {triggerLabel}
       </Button>
 
-      {isOpen && hasRequests ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur"
-          onClick={() => setIsOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex flex-col gap-6 p-6">
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-foreground">API reference</h2>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-                    Close
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Mirror the UI action with a REST call. Examples reuse your current field values when available.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {normalized.map((request, index) => {
-                    const isActive = index === selectedRequestIndex;
-                    return (
-                      <button
-                        key={`${request.method}-${request.fullUrl}-${index}`}
-                        type="button"
-                        onClick={() => setSelectedRequestIndex(index)}
-                        className={cn(
-                          "rounded-md border px-3 py-1 text-xs font-medium transition",
-                          isActive
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-muted/40 text-muted-foreground hover:bg-muted/70",
-                        )}
-                      >
-                        <span className="uppercase tracking-wide text-[0.65rem] text-muted-foreground/90">
-                          {request.method}
-                        </span>
-                        <span className="ml-2 text-xs text-foreground">{request.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {currentRequest?.description ? (
-                  <p className="text-xs text-muted-foreground/80">{currentRequest.description}</p>
-                ) : null}
-                {currentRequest ? (
-                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-foreground">
-                        {currentRequest.method} {currentRequest.fullUrl}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <Tabs value={language} onValueChange={(value) => setLanguage(value as Language)}>
-                <TabsList className="flex flex-wrap gap-2 bg-muted/40 p-1">
-                  {LANGUAGES.map((item) => (
-                    <TabsTrigger key={item.id} value={item.id} className="text-xs">
-                      {item.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <TabsContent value={language} className="mt-4">
-                  <pre className="max-h-[420px] overflow-auto rounded-lg bg-muted/40 p-4 text-xs leading-relaxed text-foreground">
-                    <code>{codeSample}</code>
-                  </pre>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {isMounted && modalContent ? createPortal(modalContent, document.body) : null}
     </>
   );
 }
@@ -194,15 +213,30 @@ function normalizeRequest(request: DeveloperApiRequest): NormalizedRequest {
   const url = buildUrl(request.path);
   const fullUrl = queryString ? `${url}?${queryString}` : url;
 
+  const codeSamples = request.codeSamples
+    ? Object.entries(request.codeSamples).reduce<Partial<Record<Language, string>>>(
+        (accumulator, [key, sample]) => {
+          const resolved = resolveValue(sample as ValueResolver<string>);
+          if (resolved !== undefined) {
+            accumulator[key as Language] = resolved;
+          }
+          return accumulator;
+        },
+        {},
+      )
+    : undefined;
+
   return {
     title: request.title,
     method: request.method,
+    methodLabel: request.methodLabel ?? request.method,
     url,
     queryString,
     fullUrl,
     headers: baseHeaders,
     body: sanitizedBody,
     description: request.description,
+    codeSamples,
   };
 }
 
@@ -257,7 +291,7 @@ function hasHeader(headers: Record<string, string>, match: string) {
 }
 
 function buildUrl(path: string) {
-  if (/^https?:\/\//i.test(path)) {
+  if (/^(https?|wss?):\/\//i.test(path)) {
     return path;
   }
   const trimmedPath = path.startsWith("/") ? path.slice(1) : path;
@@ -276,6 +310,11 @@ function buildQueryString(params: Record<string, string>) {
 }
 
 function buildCodeSample(request: NormalizedRequest, language: Language) {
+  const customSample = request.codeSamples?.[language];
+  if (customSample) {
+    return customSample;
+  }
+
   switch (language) {
     case "python":
       return buildPython(request);

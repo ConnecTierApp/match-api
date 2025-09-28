@@ -118,54 +118,54 @@ def run_matching_job(
                 "Evaluating target %s (%s hits per criterion: %s)",
                 summary.target.id,
                 summary.hit_count(),
-            dict(hits_per_criterion),
-        )
-        active_publisher.target_search_completed(
-            target_id=str(summary.target.id),
-            target_name=summary.target.name,
-            hits_per_criterion=dict(hits_per_criterion),
-        )
+                dict(hits_per_criterion),
+            )
+            active_publisher.target_search_completed(
+                target_id=str(summary.target.id),
+                target_name=summary.target.name,
+                hits_per_criterion=dict(hits_per_criterion),
+            )
 
-        evaluation = _evaluate_target(
-            plan=plan,
-            summary=summary,
-            source_snippets=source_snippets,
-            llm=llm,
-        )
-        active_publisher.target_evaluated(
-            target_id=str(summary.target.id),
-            target_name=summary.target.name,
-            average_score=evaluation.average_score(),
-            coverage=evaluation.coverage(plan),
-            evaluations=evaluation.evaluations,
-        )
+            evaluation = _evaluate_target(
+                plan=plan,
+                summary=summary,
+                source_snippets=source_snippets,
+                llm=llm,
+            )
+            active_publisher.target_evaluated(
+                target_id=str(summary.target.id),
+                target_name=summary.target.name,
+                average_score=evaluation.average_score(),
+                coverage=evaluation.coverage(plan),
+                evaluations=evaluation.evaluations,
+            )
 
-        hit_ratio = calculate_hit_ratio(plan, evaluation)
-        logger.debug(
-            "Target %s evaluation: average_score=%s coverage=%s hit_ratio=%s",
-            summary.target.id,
-            evaluation.average_score(),
-            evaluation.coverage(plan),
-            hit_ratio,
-        )
-        audit.record_evaluation(
-            summary=summary,
-            evaluation=evaluation,
-            hit_ratio=hit_ratio,
-        )
-        candidate = MatchCandidate(
-            target=summary.target,
-            evaluation=evaluation,
-            search_hit_ratio=hit_ratio,
-        )
-        active_publisher.candidate_aggregated(
-            target_id=str(candidate.target.id),
-            target_name=candidate.target.name,
-            score=candidate.average_score,
-            search_hit_ratio=candidate.search_hit_ratio,
-            summary_reason=candidate.summary_reason,
-        )
-        candidates.append(candidate)
+            hit_ratio = calculate_hit_ratio(plan, evaluation)
+            logger.debug(
+                "Target %s evaluation: average_score=%s coverage=%s hit_ratio=%s",
+                summary.target.id,
+                evaluation.average_score(),
+                evaluation.coverage(plan),
+                hit_ratio,
+            )
+            audit.record_evaluation(
+                summary=summary,
+                evaluation=evaluation,
+                hit_ratio=hit_ratio,
+            )
+            candidate = MatchCandidate(
+                target=summary.target,
+                evaluation=evaluation,
+                search_hit_ratio=hit_ratio,
+            )
+            active_publisher.candidate_aggregated(
+                target_id=str(candidate.target.id),
+                target_name=candidate.target.name,
+                score=candidate.average_score,
+                search_hit_ratio=candidate.search_hit_ratio,
+                summary_reason=candidate.summary_reason,
+            )
+            candidates.append(candidate)
 
     except Exception as exc:
         audit.finalize_failure(error_message=str(exc))

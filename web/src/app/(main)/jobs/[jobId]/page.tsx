@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { useJob } from "@/modules/jobs/hooks/use-job";
 import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
-import { useJobStream, createJobStreamEntry } from "@/modules/jobs/hooks/use-job-stream";
+import { useJobStream, createJobStreamEntry, resolveWebSocketUrl } from "@/modules/jobs/hooks/use-job-stream";
 import { useJobUpdates } from "@/modules/jobs/hooks/use-job-updates";
 import { useMatchesByJob } from "@/modules/matches/hooks/use-matches-by-job";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
@@ -97,19 +97,100 @@ export default function JobDetailPage() {
   }, [persistedEntries, stream.events]);
 
   const developerRequests = job
-    ? [
-        {
-          title: "Mark job completed",
-          method: "PATCH" as const,
-          path: `matching-jobs/${job.id}/`,
-          body: { status: JOB_STATUS_TO_API["Completed"] },
-        },
-        {
-          title: "Delete job",
-          method: "DELETE" as const,
-          path: `matching-jobs/${job.id}/`,
-        },
-      ]
+    ? (() => {
+        const websocketUrl = resolveWebSocketUrl(job.id);
+        return [
+          {
+            title: "Stream realtime updates",
+            method: "WS" as const,
+            path: websocketUrl,
+            methodLabel: "WS",
+            description: "Subscribe to the websocket feed to receive job events as they happen.",
+            codeSamples: {
+              curl: () =>
+                [
+                  "# Requires websocat (https://github.com/vi/websocat)",
+                  `websocat "${websocketUrl}"`,
+                ].join("\n"),
+              javascript: () =>
+                [
+                  `const socket = new WebSocket("${websocketUrl}");`,
+                  "",
+                  'socket.addEventListener("open", () => {',
+                  '  console.log("connected");',
+                  '});',
+                  "",
+                  'socket.addEventListener("message", (event) => {',
+                  '  const payload = JSON.parse(event.data);',
+                  '  console.log("job event", payload);',
+                  '});',
+                  "",
+                  'socket.addEventListener("close", () => {',
+                  '  console.log("socket closed");',
+                  '});',
+                ].join("\n"),
+              python: () =>
+                [
+                  "import asyncio",
+                  "import json",
+                  "import websockets",
+                  "",
+                  `async def main():`,
+                  `    url = "${websocketUrl}"`,
+                  "    async with websockets.connect(url) as websocket:",
+                  "        async for message in websocket:",
+                  "            payload = json.loads(message)",
+                  '            print("job event", payload)',
+                  "",
+                  "asyncio.run(main())",
+                ].join("\n"),
+              go: () =>
+                [
+                  "package main",
+                  "",
+                  "import (",
+                  '  "fmt"',
+                  '  "log"',
+                  '  "net/url"',
+                  '  "github.com/gorilla/websocket"',
+                  ")",
+                  "",
+                  "func main() {",
+                  '  u, err := url.Parse("${websocketUrl}")',
+                  "  if err != nil {",
+                  "    log.Fatal(err)",
+                  "  }",
+                  "",
+                  "  conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)",
+                  "  if err != nil {",
+                  "    log.Fatal(err)",
+                  "  }",
+                  "  defer conn.Close()",
+                  "",
+                  "  for {",
+                  "    _, message, err := conn.ReadMessage()",
+                  "    if err != nil {",
+                  "      log.Fatal(err)",
+                  "    }",
+                  '    fmt.Printf("job event %s\n", message)',
+                  "  }",
+                  "}",
+                ].join("\n"),
+            },
+          },
+          {
+            title: "Mark job completed",
+            method: "PATCH" as const,
+            path: `matching-jobs/${job.id}/`,
+            body: { status: JOB_STATUS_TO_API["Completed"] },
+          },
+          {
+            title: "Delete job",
+            method: "DELETE" as const,
+            path: `matching-jobs/${job.id}/`,
+          },
+        ];
+      })()
     : [];
 
   if (!job) {

@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<ApiJobStatus, string> = {
   failed: JOB_STATUS_FROM_API.failed,
 };
 
-function resolveWebSocketUrl(jobId: string): string {
+export function resolveWebSocketUrl(jobId: string): string {
   const explicitBase = process.env.NEXT_PUBLIC_WS_BASE_URL;
   if (explicitBase) {
     const base = explicitBase.endsWith("/") ? explicitBase.slice(0, -1) : explicitBase;
