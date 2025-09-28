@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,34 +21,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { EntityInput } from "@/types/matching";
 
 interface CreateEntityCardProps {
-  entityOptions: string[];
+  entityOptions: EntityTypeOption[];
+  isLoadingEntityTypes: boolean;
+  disableSelection?: boolean;
   onSubmit: (input: EntityInput) => Promise<void> | void;
 }
 
 const initialDraft: EntityInput = {
   name: "",
-  type: "Candidates",
+  type: "",
   summary: "",
 };
 
-export function CreateEntityCard({ entityOptions, onSubmit }: CreateEntityCardProps) {
+export function CreateEntityCard({
+  entityOptions,
+  isLoadingEntityTypes,
+  disableSelection = false,
+  onSubmit,
+}: CreateEntityCardProps) {
   const [draft, setDraft] = useState<EntityInput>(initialDraft);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const defaultType = useMemo(() => entityOptions[0]?.slug ?? "", [entityOptions]);
+  const hasEntityTypes = entityOptions.length > 0 && !disableSelection;
+
+  useEffect(() => {
+    if (!hasEntityTypes) {
+      return;
+    }
+
+    setDraft((previous) => {
+      if (previous.type) {
+        return previous;
+      }
+      return { ...previous, type: defaultType as EntityInput["type"] };
+    });
+  }, [defaultType, hasEntityTypes]);
+
+  const isValid = hasEntityTypes && Boolean(draft.name.trim()) && Boolean(draft.type);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!draft.name.trim()) {
+    if (!isValid) {
       return;
     }
 
     setIsSubmitting(true);
     try {
       await onSubmit(draft);
-      setDraft((prev) => ({ ...initialDraft, type: prev.type }));
+      setDraft((prev) => ({
+        ...initialDraft,
+        type: prev.type || (defaultType as EntityInput["type"]),
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -80,18 +109,29 @@ export function CreateEntityCard({ entityOptions, onSubmit }: CreateEntityCardPr
               onValueChange={(value) =>
                 setDraft((prev) => ({ ...prev, type: value as EntityInput["type"] }))
               }
+              disabled={!hasEntityTypes}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select entity type" />
+                <SelectValue placeholder={isLoadingEntityTypes ? "Loading…" : "Select entity type"} />
               </SelectTrigger>
               <SelectContent>
                 {entityOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
+                  <SelectItem key={option.id} value={option.slug}>
+                    <div className="flex flex-col">
+                      <span>{option.label}</span>
+                      {option.description ? (
+                        <span className="text-xs text-muted-foreground">{option.description}</span>
+                      ) : null}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {!hasEntityTypes && !isLoadingEntityTypes ? (
+              <p className="text-xs text-muted-foreground">
+                Create an entity type first to categorize new entities.
+              </p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="entity-summary">Summary</Label>
@@ -104,7 +144,7 @@ export function CreateEntityCard({ entityOptions, onSubmit }: CreateEntityCardPr
             />
           </div>
           <CardFooter className="px-0">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || !isValid}>
               {isSubmitting ? "Creating..." : "Create entity"}
             </Button>
           </CardFooter>

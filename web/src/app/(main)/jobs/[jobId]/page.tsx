@@ -102,15 +102,12 @@ export default function JobDetailPage() {
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <Badge variant="outline" className="uppercase tracking-wide">
-            {job.sourceEntity}
+            {job.sourceEntityType}
           </Badge>
           <span>→</span>
           <Badge variant="outline" className="uppercase tracking-wide">
-            {job.targetEntity}
+            {job.targetEntityType}
           </Badge>
-          <span className="text-muted-foreground/80">
-            {job.sourceCount} sources • {job.targetCount} targets
-          </span>
           {job.notes ? (
             <span className="italic text-muted-foreground/80">“{job.notes}”</span>
           ) : null}

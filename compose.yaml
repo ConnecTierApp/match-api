@@ -69,11 +69,11 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_BASE_URL=https://api.match.connectier.app
+        - NEXT_PUBLIC_API_BASE_URL=https://api.match.connectier.app/api
     domainname: match.connectier.app
     ports:
       - "3000:3000"
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_BASE_URL: https://api.match.connectier.app
+      NEXT_PUBLIC_API_BASE_URL: https://api.match.connectier.app/api

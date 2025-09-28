@@ -13,6 +13,7 @@ import { useMatchingStats } from "@/modules/stats/hooks/use-matching-stats";
 
 const navItems = [
   { label: "Entities", href: "/entities" },
+  { label: "Entity types", href: "/entity-types" },
   { label: "Templates", href: "/templates" },
   { label: "Jobs", href: "/jobs" },
   { label: "Matches", href: "/matches" },

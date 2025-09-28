@@ -2,12 +2,13 @@
 
 import { useParams, useRouter } from "next/navigation";
 
-import { EntityAttachDocumentCard } from "../_components/entity-attach-document-card";
-import { EntityDocumentsCard } from "../_components/entity-documents-card";
-import { EntitySummaryCard } from "../_components/entity-summary-card";
+import { EntityAttachDocumentCard } from "../components/entity-attach-document-card";
+import { EntityDocumentsCard } from "../components/entity-documents-card";
+import { EntitySummaryCard } from "../components/entity-summary-card";
 import { useEntity } from "@/modules/entities/hooks/use-entity";
 import { useEntityDocuments } from "@/modules/entities/hooks/use-entity-documents";
 import { useEntityMutations } from "@/modules/entities/hooks/use-entity-mutations";
+import { EntityDocumentInput } from "@/types/matching";
 
 export default function EntityDetailPage() {
   const params = useParams<{ entityId: string }>();
@@ -33,11 +34,11 @@ export default function EntityDetailPage() {
     router.push("/entities");
   };
 
-  const handleAttachDocument = async (input: { title: string; content: string; tags: string[] }) => {
+  const handleAttachDocument = async (input: EntityDocumentInput) => {
     await attachDocument(entity.id, input);
   };
 
-  const handleUpdateDocument = async (documentId: string, input: { title: string; content: string; tags: string[] }) => {
+  const handleUpdateDocument = async (documentId: string, input: EntityDocumentInput) => {
     await updateDocument(entity.id, documentId, input);
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { FilePlus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +13,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { Entity } from "@/types/matching";
 
 interface EntitiesListCardProps {
   entities: Entity[];
+  entityTypeOptions: EntityTypeOption[];
   isLoading: boolean;
   onDelete: (id: string) => Promise<void> | void;
 }
 
-export function EntitiesListCard({ entities, isLoading, onDelete }: EntitiesListCardProps) {
+export function EntitiesListCard({ entities, entityTypeOptions, isLoading, onDelete }: EntitiesListCardProps) {
+  const typeLabelBySlug = useMemo(() => {
+    const map = new Map<string, EntityTypeOption>();
+    entityTypeOptions.forEach((option) => {
+      map.set(option.slug, option);
+    });
+    return map;
+  }, [entityTypeOptions]);
+
   return (
     <Card>
       <CardHeader>
@@ -46,7 +57,9 @@ export function EntitiesListCard({ entities, isLoading, onDelete }: EntitiesList
                 </Link>
                 <p className="text-sm text-muted-foreground">{entity.summary || "No summary yet"}</p>
               </div>
-              <Badge variant="secondary">{entity.type}</Badge>
+              <Badge variant="secondary">
+                {typeLabelBySlug.get(entity.type)?.label ?? entity.type}
+              </Badge>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from matching.configuration import ConfigurationError, normalize_matching_config
+
 from .models import (
     Document,
     DocumentChunk,
@@ -157,6 +159,13 @@ class MatchingTemplateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate_config(self, value):
+        try:
+            normalized, _ = normalize_matching_config(value, context="Template", require_criteria=True)
+        except ConfigurationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return normalized
+
 
 class MatchingJobSerializer(serializers.ModelSerializer):
     workspace = serializers.SlugRelatedField(
@@ -180,6 +189,15 @@ class MatchingJobSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_config_override(self, value):
+        if value in (None, {}):
+            return value
+        try:
+            normalized, _ = normalize_matching_config(value, context="Job override", require_criteria=False)
+        except ConfigurationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return normalized
 
 
 class MatchingJobTargetSerializer(serializers.ModelSerializer):

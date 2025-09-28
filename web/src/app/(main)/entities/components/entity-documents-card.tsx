@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { Check, Edit, FileText, Trash2, X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ const emptyDraft: EntityDocumentInput = {
   title: "",
   content: "",
   tags: [],
+  source: "",
 };
 
 export function EntityDocumentsCard({
@@ -48,6 +48,7 @@ export function EntityDocumentsCard({
       title: document.title,
       content: document.content,
       tags: document.tags,
+      source: document.source ?? "",
     });
     setTagsInput(document.tags.join(", "));
   };
@@ -68,6 +69,7 @@ export function EntityDocumentsCard({
         title: draft.title,
         content: draft.content,
         tags: parseTags(tagsInput),
+        source: normalizeSource(draft.source),
       });
       stopEditing();
     } finally {
@@ -85,7 +87,7 @@ export function EntityDocumentsCard({
         <CardTitle>Documents ({documents.length})</CardTitle>
         <CardDescription>All knowledge linked to this entity.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-8 bg-secondary/50">
         {isLoading && documents.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 p-6 text-center text-sm text-muted-foreground">
             Loading documents…
@@ -127,6 +129,13 @@ export function EntityDocumentsCard({
                       value={tagsInput}
                       onChange={(event) => setTagsInput(event.target.value)}
                       placeholder="Comma-separated tags"
+                      className="min-w-0"
+                    />
+                    <Input
+                      type="url"
+                      value={draft.source ?? ""}
+                      onChange={(event) => setDraft((prev) => ({ ...prev, source: event.target.value }))}
+                      placeholder="Source URL (optional)"
                       className="min-w-0"
                     />
                     <Textarea
@@ -183,6 +192,19 @@ export function EntityDocumentsCard({
                       ))}
                     </div>
                   ) : null}
+                  {document.source ? (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground/80">
+                      <span className="uppercase tracking-[0.3em]">Source</span>
+                      <a
+                        href={document.source}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="max-w-full break-words text-xs font-medium text-primary underline-offset-4 hover:underline [overflow-wrap:anywhere]"
+                      >
+                        {document.source}
+                      </a>
+                    </div>
+                  ) : null}
                   <div className="text-sm leading-relaxed text-muted-foreground/90 overflow-x-scroll markdown-content">
                     <MarkdownRenderer content={document.content} />
                   </div>
@@ -207,4 +229,9 @@ function parseTags(value: string) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function normalizeSource(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }

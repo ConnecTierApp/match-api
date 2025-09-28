@@ -3,10 +3,15 @@
 This project should stay lightweight for a hackathon demo, so the models only cover what we need to ingest entity descriptions, embed them, run matching passes, and store match outputs.
 
 ## Core Entities
+### EntityType
+- Workspace-scoped category that keeps entities organized (candidates, jobs, courses, etc.).
+- Fields: `id`, `workspace_id` (FK Workspace), `slug`, `display_name`, `description`, `metadata` (JSONB), `created_at`, `updated_at`.
+- Reasoning: Moving entity categorization into its own table lets us share definitions, enforce workspace isolation, and evolve metadata without touching the core entity schema.
+
 ### Entity
 - Represents anything we might match (candidate, job, course, student, etc.).
-- Fields: `id`, `external_ref` (optional identifier from the source system), `entity_type` (string enum), `name`, `metadata` (JSONB for small structured details), `created_at`, `updated_at`.
-- Reasoning: Everything else in the system hangs off an entity; keeping it generic lets us mix types without schema churn.
+- Fields: `id`, `workspace_id` (FK Workspace inferred from the `entity_type`), `entity_type_id` (FK EntityType), `external_ref` (optional identifier from the source system), `name`, `metadata` (JSONB for small structured details), `created_at`, `updated_at`.
+- Reasoning: Everything else in the system hangs off an entity; keeping it generic lets us mix types without schema churn while leaning on `EntityType` for categorization.
 
 ### Document
 - A text document describing an entity (resume, job description, syllabus).
@@ -21,8 +26,8 @@ This project should stay lightweight for a hackathon demo, so the models only co
 ## Matching Setup
 ### MatchingTemplate
 - Describes how to compare a source entity against a candidate pool.
-- Fields: `id`, `name`, `description`, `source_entity_type`, `target_entity_type`, `config` (JSONB for scoring weights, filters, prompt snippets), `created_at`.
-- Reasoning: Templates let us reuse the same matching logic across hackathon demos without redeploying.
+- Fields: `id`, `workspace_id` (FK Workspace), `name`, `description`, `source_entity_type_id` (FK EntityType), `target_entity_type_id` (FK EntityType), `config` (JSONB for scoring weights, filters, prompt snippets), `created_at`, `updated_at`.
+- Reasoning: Templates let us reuse the same matching logic across hackathon demos without redeploying, while tracking exactly which entity types the scoring logic expects.
 
 ### MatchingJob
 - A single execution of a template for a particular source entity and set of targets.

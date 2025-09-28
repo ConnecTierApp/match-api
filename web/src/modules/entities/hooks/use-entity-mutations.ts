@@ -111,6 +111,7 @@ export function useEntityMutations() {
           title: input.title ?? existingDoc?.title ?? "",
           content: input.content ?? existingDoc?.content ?? "",
           tags: input.tags ?? existingDoc?.tags ?? [],
+          source: input.source ?? existingDoc?.source ?? null,
         };
 
         const updated = await updateDocumentApi(documentId, payload);

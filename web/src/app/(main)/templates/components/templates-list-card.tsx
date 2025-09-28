@@ -12,14 +12,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useMemo } from "react";
+
+import { EntityTypeOption } from "@/modules/entities/hooks/use-entities";
 import { Template } from "@/types/matching";
 
 interface TemplatesListCardProps {
   templates: Template[];
+  entityTypeOptions: EntityTypeOption[];
   onDelete: (id: string) => Promise<void> | void;
 }
 
-export function TemplatesListCard({ templates, onDelete }: TemplatesListCardProps) {
+export function TemplatesListCard({ templates, entityTypeOptions, onDelete }: TemplatesListCardProps) {
+  const typeLabelBySlug = useMemo(() => {
+    const map = new Map<string, EntityTypeOption>();
+    entityTypeOptions.forEach((option) => map.set(option.slug, option));
+    return map;
+  }, [entityTypeOptions]);
+
   return (
     <Card className="h-fit">
       <CardHeader>
@@ -43,11 +53,11 @@ export function TemplatesListCard({ templates, onDelete }: TemplatesListCardProp
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline" className="uppercase tracking-wide text-xs">
-                {template.defaultSource}
+                {typeLabelBySlug.get(template.defaultSource)?.label ?? template.defaultSource}
               </Badge>
               <span>→</span>
               <Badge variant="outline" className="uppercase tracking-wide text-xs">
-                {template.defaultTarget}
+                {typeLabelBySlug.get(template.defaultTarget)?.label ?? template.defaultTarget}
               </Badge>
               <span className="hidden w-px self-stretch bg-border sm:block" />
               <span>{template.scoringStrategy}</span>

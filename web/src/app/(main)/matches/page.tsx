@@ -2,8 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 
-import { ManualMatchCard } from "./_components/manual-match-card";
-import { MatchesReviewCard } from "./_components/matches-review-card";
+import { ManualMatchCard } from "./components/manual-match-card";
+import { MatchesReviewCard } from "./components/matches-review-card";
 import { useJobs } from "@/modules/jobs/hooks/use-jobs";
 import { useMatchMutations } from "@/modules/matches/hooks/use-match-mutations";
 import { useMatches } from "@/modules/matches/hooks/use-matches";

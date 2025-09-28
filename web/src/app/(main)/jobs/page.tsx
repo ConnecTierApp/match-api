@@ -3,9 +3,9 @@
 import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { LaunchJobCard } from "./_components/launch-job-card";
-import { JobsTableCard } from "./_components/jobs-table-card";
-import { useEntityOptions } from "@/modules/entities/hooks/use-entities";
+import { LaunchJobCard } from "./components/launch-job-card";
+import { JobsTableCard } from "./components/jobs-table-card";
+import { useEntityOptions, useEntities } from "@/modules/entities/hooks/use-entities";
 import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
 import { useJobs } from "@/modules/jobs/hooks/use-jobs";
 import { useTemplates } from "@/modules/templates/hooks/use-templates";
@@ -16,7 +16,12 @@ function JobsPageContent() {
 
   const { data: jobs } = useJobs();
   const { data: templates } = useTemplates();
-  const entityOptions = useEntityOptions();
+  const {
+    options: entityOptions,
+    isLoading: isLoadingEntityTypes,
+    usingFallback,
+  } = useEntityOptions();
+  const { data: entities } = useEntities();
   const { createJob } = useJobMutations();
 
   const sortedJobs = useMemo(() => {
@@ -41,7 +46,10 @@ function JobsPageContent() {
     <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
       <LaunchJobCard
         templates={templates}
+        entities={entities}
         entityOptions={entityOptions}
+        isLoadingEntityTypes={isLoadingEntityTypes}
+        disableSelection={usingFallback}
         defaultTemplateId={templateQuery}
         onCreate={createJob}
       />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,12 +24,22 @@ import {
 import { useJobs } from "@/modules/jobs/hooks/use-jobs";
 import { useMatches } from "@/modules/matches/hooks/use-matches";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
+import { useEntityOptions } from "@/modules/entities/hooks/use-entities";
 
 export default function TemplateDetailPage() {
   const params = useParams<{ templateId: string }>();
   const template = useTemplate(params.templateId);
   const { data: jobs } = useJobs();
   const { data: matches } = useMatches();
+  const { options: entityTypeOptions } = useEntityOptions();
+
+  const typeLabelBySlug = useMemo(() => {
+    const map = new Map<string, string>();
+    entityTypeOptions.forEach((option) => {
+      map.set(option.slug, option.label);
+    });
+    return map;
+  }, [entityTypeOptions]);
 
   if (!template) {
     return (
@@ -55,11 +66,11 @@ export default function TemplateDetailPage() {
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="uppercase tracking-wide">
-              {template.defaultSource}
+              {typeLabelBySlug.get(template.defaultSource) ?? template.defaultSource}
             </Badge>
             <span className="text-muted-foreground">→</span>
             <Badge variant="outline" className="uppercase tracking-wide">
-              {template.defaultTarget}
+              {typeLabelBySlug.get(template.defaultTarget) ?? template.defaultTarget}
             </Badge>
           </div>
           <CardTitle className="text-2xl">{template.name}</CardTitle>
@@ -78,6 +89,28 @@ export default function TemplateDetailPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Search criteria</CardTitle>
+          <CardDescription>{template.criteria.length} configured objectives.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {template.criteria.map((criterion) => (
+            <div key={criterion.id} className="rounded-lg border border-border/70 bg-muted/30 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-foreground">{criterion.label}</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Weight {criterion.weight} · {criterion.sourceLimit}/{criterion.targetLimit} snippets
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{criterion.prompt}</p>
+              {criterion.guidance ? (
+                <p className="mt-2 text-xs text-muted-foreground">Guidance: {criterion.guidance}</p>
+              ) : null}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Jobs using this template</CardTitle>

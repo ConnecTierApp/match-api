@@ -1,27 +1,43 @@
-"""Search planning utilities for matching jobs."""
+"""Search planning utilities for matching jobs.
+
+The planner takes loosely-structured configuration (template + overrides) and
+turns it into a canonical list of criteria. Centralising this logic keeps the
+rest of the pipeline agnostic to how the product team chooses to persist
+configuration (JSON today, maybe dedicated models tomorrow).
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 
-from .context import MatchingJobContext
+from .configuration import MatchingConfiguration
 from .exceptions import PlanningError
 
 
 @dataclass(slots=True)
 class SearchCriterion:
-    """Single search objective with optional weighting."""
+    """Single search objective with optional weighting.
 
+    The weight field is carried through even though we do not yet act on it; the
+    value will become useful when we start ranking or prioritising search calls.
+    """
+
+    id: str
     label: str
     prompt: str
     weight: float = 1.0
     guidance: str | None = None
+    source_snippet_limit: int = 3
+    target_snippet_limit: int = 3
 
 
 @dataclass(slots=True)
 class SearchPlan:
-    """Container for the ordered list of search criteria."""
+    """Container for the ordered list of search criteria.
+
+    Keeping the plan in order means product owners can craft experiences like
+    "always check culture fit first" by adjusting the underlying configuration.
+    """
 
     criteria: list[SearchCriterion]
 
@@ -30,46 +46,30 @@ class SearchPlan:
 
 
 class SearchPlanBuilder:
-    """Responsible for turning job configuration into actionable search criteria."""
+    """Responsible for turning job configuration into actionable search criteria.
 
-    def __init__(self, ctx: MatchingJobContext):
-        self.ctx = ctx
+    This class owns the precedence rules (job override > template) and ensures
+    we always run with normalized, validated criteria.
+    """
+
+    def __init__(self, config: MatchingConfiguration):
+        self.config = config
 
     def build(self) -> SearchPlan:
-        raw_criteria = self._pull_raw_criteria()
-        if not raw_criteria:
-            raise PlanningError("No search criteria provided in job or template configuration.")
+        criteria_definitions = self.config.search_criteria
+        if not criteria_definitions:
+            raise PlanningError("No search criteria provided after configuration normalization.")
 
-        criteria = [self._normalise(criterion) for criterion in raw_criteria]
+        criteria = [
+            SearchCriterion(
+                id=definition.id,
+                label=definition.label,
+                prompt=definition.prompt,
+                weight=definition.weight,
+                guidance=definition.guidance,
+                source_snippet_limit=definition.source_snippet_limit,
+                target_snippet_limit=definition.target_snippet_limit,
+            )
+            for definition in criteria_definitions
+        ]
         return SearchPlan(criteria=criteria)
-
-    # Internal helpers -------------------------------------------------
-    def _pull_raw_criteria(self) -> Iterable[dict]:
-        job_config = self.ctx.job_config
-        criteria = job_config.get("search_criteria")
-        if criteria:
-            return criteria
-
-        parameters = job_config.get("parameters")
-        if isinstance(parameters, dict):
-            if isinstance(parameters.get("search_criteria"), list):
-                return parameters["search_criteria"]
-            if isinstance(parameters.get("objectives"), list):
-                return parameters["objectives"]
-
-        template_config = self.ctx.template_config
-        if isinstance(template_config.get("search_criteria"), list):
-            return template_config["search_criteria"]
-
-        return []
-
-    def _normalise(self, raw: dict) -> SearchCriterion:
-        label = raw.get("label") or raw.get("name")
-        prompt = raw.get("prompt") or raw.get("query") or raw.get("description")
-        weight = float(raw.get("weight", 1))
-        guidance = raw.get("guidance")
-
-        if not label or not prompt:
-            raise PlanningError("Search criteria must include at least a label and a prompt.")
-
-        return SearchCriterion(label=label, prompt=prompt, weight=weight, guidance=guidance)

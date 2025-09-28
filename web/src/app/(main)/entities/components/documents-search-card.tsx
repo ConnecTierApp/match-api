@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEntityDocumentSearch } from "@/modules/entities/hooks/use-entity-document-search";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 function parseTags(value: string) {
   return value
@@ -98,7 +99,9 @@ export function DocumentsSearchCard() {
                 </div>
               </div>
               <h3 className="mt-2 text-base font-semibold text-foreground">{document.title}</h3>
-              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground w-full overflow-hidden">{document.content}</p>
+              <div className="mt-1 line-clamp-2 text-sm text-muted-foreground w-full overflow-hidden">
+                <MarkdownRenderer content={document.content.slice(0, 500)} />
+              </div>
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                 <div>
                   Linked to{" "}

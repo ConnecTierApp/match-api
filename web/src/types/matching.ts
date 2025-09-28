@@ -1,11 +1,24 @@
-export type EntityType =
-  | "Candidates"
-  | "Roles"
-  | "Companies"
-  | "Advisors"
-  | "Projects"
-  | "Skills"
-  | "Teams";
+export type EntityType = string;
+
+export interface EntityTypeDefinition {
+  id: string;
+  slug: string;
+  displayName: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  workspaceSlug: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EntityTypeInput {
+  slug: string;
+  displayName?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type EntityTypeUpdate = Partial<EntityTypeInput>;
 
 export type JobStatus = "Queued" | "Scoring" | "Completed" | "Failed";
 
@@ -25,6 +38,7 @@ export interface EntityDocument {
   title: string;
   content: string;
   tags: string[];
+  source: string | null;
   uploadedAt: string;
   metadata?: Record<string, unknown>;
 }
@@ -52,9 +66,36 @@ export interface EntityDocumentInput {
   title: string;
   content: string;
   tags: string[];
+  source?: string | null;
 }
 
 export type EntityDocumentUpdate = Partial<EntityDocumentInput>;
+
+export interface MatchingCriterion {
+  id: string;
+  label: string;
+  prompt: string;
+  weight: number;
+  guidance?: string;
+  sourceLimit: number;
+  targetLimit: number;
+}
+
+export interface MatchingCriterionInput {
+  id?: string;
+  label: string;
+  prompt: string;
+  weight?: number;
+  guidance?: string;
+  sourceLimit?: number;
+  targetLimit?: number;
+}
+
+export interface MatchingConfiguration {
+  scoringStrategy?: string;
+  description?: string;
+  searchCriteria: MatchingCriterion[];
+}
 
 export interface Template {
   id: string;
@@ -63,6 +104,7 @@ export interface Template {
   scoringStrategy: string;
   defaultSource: EntityType;
   defaultTarget: EntityType;
+  criteria: MatchingCriterion[];
   lastUpdated: string;
 }
 
@@ -72,6 +114,7 @@ export interface TemplateInput {
   scoringStrategy: string;
   defaultSource: EntityType;
   defaultTarget: EntityType;
+  criteria: MatchingCriterionInput[];
 }
 
 export type TemplateUpdate = Partial<TemplateInput>;
@@ -81,10 +124,8 @@ export interface Job {
   name: string;
   templateId: string;
   sourceEntityId: string;
-  sourceEntity: EntityType;
-  targetEntity: EntityType;
-  sourceCount: number;
-  targetCount: number;
+  sourceEntityType: EntityType;
+  targetEntityType: EntityType;
   status: JobStatus;
   createdAt: string;
   lastUpdated: string;
@@ -94,14 +135,13 @@ export interface Job {
 }
 
 export interface JobInput {
-  name: string;
+  displayName: string;
   templateId: string;
-  sourceEntity: EntityType;
-  targetEntity: EntityType;
-  sourceCount: number;
-  targetCount: number;
-  notes?: string;
+  sourceEntityId: string;
+  targetEntityType: EntityType;
   status?: JobStatus;
+  notes?: string;
+  searchCriteria?: MatchingCriterionInput[];
 }
 
 export type JobUpdate = Partial<JobInput>;

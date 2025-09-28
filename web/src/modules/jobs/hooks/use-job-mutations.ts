@@ -3,7 +3,6 @@
 import { useSWRConfig } from "swr";
 
 import { ENTITIES_KEY } from "@/modules/entities/hooks/use-entities";
-import { createEntityApi } from "@/modules/entities/lib/api";
 import { JOBS_KEY } from "@/modules/jobs/hooks/use-jobs";
 import {
   createJobApi,
@@ -19,22 +18,16 @@ export function useJobMutations() {
   const { mutate } = useSWRConfig();
 
   const createJob = async (input: JobInput) => {
-    const displayName = input.name.trim() ? input.name.trim() : `${input.templateId} job`;
-
-    const sourceEntity = await createEntityApi({
-      name: displayName,
-      summary: input.notes ?? `Auto-generated source entity for ${displayName}`,
-      type: input.sourceEntity,
-    });
+    const displayName = input.displayName.trim() ? input.displayName.trim() : `${input.templateId} job`;
 
     const configOverride = buildJobConfigFromInput({
       ...input,
-      name: displayName,
+      displayName,
     });
 
     await createJobApi({
       templateId: input.templateId,
-      sourceEntityId: sourceEntity.id,
+      sourceEntityId: input.sourceEntityId,
       status: input.status ?? "Queued",
       configOverride,
     });
@@ -71,17 +64,26 @@ export function useJobMutations() {
   } as const;
 }
 
-function buildJobConfigFromInput(input: JobInput): JobConfig {
+function buildJobConfigFromInput(input: JobInput & { displayName: string }): JobConfig {
   const config: JobConfig = {
-    display_name: input.name,
-    source_entity_type: input.sourceEntity,
-    target_entity_type: input.targetEntity,
-    source_count: input.sourceCount,
-    target_count: input.targetCount,
+    display_name: input.displayName,
+    target_entity_type: input.targetEntityType,
   };
 
   if (input.notes) {
     config.notes = input.notes;
+  }
+
+  if (input.searchCriteria && input.searchCriteria.length) {
+    config.search_criteria = input.searchCriteria.map((criterion) => ({
+      label: criterion.label,
+      prompt: criterion.prompt,
+      weight: criterion.weight ?? 1,
+      guidance: criterion.guidance,
+      source_snippet_limit: criterion.sourceLimit ?? 3,
+      target_snippet_limit: criterion.targetLimit ?? 3,
+      ...(criterion.id ? { id: criterion.id } : {}),
+    }));
   }
 
   return config;
@@ -89,38 +91,42 @@ function buildJobConfigFromInput(input: JobInput): JobConfig {
 
 function hasConfigUpdates(input: JobUpdate) {
   return (
-    input.name !== undefined ||
-    input.sourceEntity !== undefined ||
-    input.targetEntity !== undefined ||
-    input.sourceCount !== undefined ||
-    input.targetCount !== undefined ||
-    input.notes !== undefined
+    input.displayName !== undefined ||
+    input.targetEntityType !== undefined ||
+    input.notes !== undefined ||
+    input.searchCriteria !== undefined
   );
 }
 
 function mergeJobConfig(existing: JobConfig, updates: JobUpdate): JobConfig {
   const next: JobConfig = { ...existing };
 
-  if (updates.name !== undefined) {
-    next.display_name = updates.name;
+  if (updates.displayName !== undefined) {
+    next.display_name = updates.displayName;
   }
-  if (updates.sourceEntity !== undefined) {
-    next.source_entity_type = updates.sourceEntity;
-  }
-  if (updates.targetEntity !== undefined) {
-    next.target_entity_type = updates.targetEntity;
-  }
-  if (updates.sourceCount !== undefined) {
-    next.source_count = updates.sourceCount;
-  }
-  if (updates.targetCount !== undefined) {
-    next.target_count = updates.targetCount;
+  if (updates.targetEntityType !== undefined) {
+    next.target_entity_type = updates.targetEntityType;
   }
   if (updates.notes !== undefined) {
     if (updates.notes) {
       next.notes = updates.notes;
     } else {
       delete next.notes;
+    }
+  }
+  if (updates.searchCriteria !== undefined) {
+    if (updates.searchCriteria && updates.searchCriteria.length) {
+      next.search_criteria = updates.searchCriteria.map((criterion) => ({
+        label: criterion.label,
+        prompt: criterion.prompt,
+        weight: criterion.weight ?? 1,
+        guidance: criterion.guidance,
+        source_snippet_limit: criterion.sourceLimit ?? 3,
+        target_snippet_limit: criterion.targetLimit ?? 3,
+        ...(criterion.id ? { id: criterion.id } : {}),
+      }));
+    } else {
+      delete next.search_criteria;
     }
   }
 

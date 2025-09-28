@@ -24,6 +24,7 @@ const initialDocument: EntityDocumentInput = {
   title: "",
   content: "",
   tags: [],
+  source: "",
 };
 
 export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardProps) {
@@ -44,6 +45,7 @@ export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardP
         title: draft.title,
         content: draft.content,
         tags: parseTags(tagsInput),
+        source: normalizeSource(draft.source),
       });
       setDraft(initialDocument);
       setTagsInput("");
@@ -79,6 +81,16 @@ export function EntityAttachDocumentCard({ onAttach }: EntityAttachDocumentCardP
             />
           </div>
           <div className="grid gap-2">
+            <Label htmlFor="document-source">Source URL</Label>
+            <Input
+              id="document-source"
+              type="url"
+              placeholder="https://"
+              value={draft.source ?? ""}
+              onChange={(event) => setDraft((prev) => ({ ...prev, source: event.target.value }))}
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="document-content">Content</Label>
             <Textarea
               id="document-content"
@@ -104,4 +116,9 @@ function parseTags(value: string) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function normalizeSource(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }

@@ -178,6 +178,7 @@ CHANNEL_LAYERS = {
 # Celery
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_IMPORTS = ("core.tasks", "matching.tasks")
 
 # CrewAI (no special settings needed for hello world)
 

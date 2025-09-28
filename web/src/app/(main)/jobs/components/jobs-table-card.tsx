@@ -49,7 +49,7 @@ export function JobsTableCard({ jobs, templateNames }: JobsTableCardProps) {
                   {templateNames[job.templateId] ?? job.templateId}
                 </TableCell>
                 <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                  {job.sourceCount} → {job.targetCount}
+                  {job.sourceEntityType} → {job.targetEntityType}
                 </TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(job.status)}>{job.status}</Badge>
