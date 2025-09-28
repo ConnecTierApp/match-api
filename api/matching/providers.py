@@ -10,6 +10,7 @@ from weaviate.classes.query import Filter
 
 from core.ai_clients import get_embedding_client, get_llm_client, get_weaviate_client
 from core.models import DocumentChunk
+from django.db.models import Q
 
 from .interfaces import EmbeddingGenerator, LanguageModel, VectorSearchHit, VectorSearcher
 
@@ -91,20 +92,26 @@ class WeaviateVectorSearcher(VectorSearcher):
         )
 
         hits: list[VectorSearchHit] = []
-        chunk_ids = [obj.uuid for obj in result.objects]
-        chunks_by_id = {
-            str(chunk.id): chunk
-            for chunk in DocumentChunk.objects.filter(id__in=chunk_ids)
-        }
+        chunk_ids = [str(obj.uuid) for obj in result.objects]
+        # Map by Weaviate vector id primarily; fall back to PK for legacy data.
+        chunks = DocumentChunk.objects.filter(
+            Q(weaviate_vector_id__in=chunk_ids) | Q(id__in=chunk_ids)
+        )
+        chunks_by_vector_or_pk: dict[str, DocumentChunk] = {}
+        for chunk in chunks:
+            if chunk.weaviate_vector_id:
+                chunks_by_vector_or_pk[str(chunk.weaviate_vector_id)] = chunk
+            chunks_by_vector_or_pk[str(chunk.id)] = chunk
         logger.debug(
             "Weaviate search returned %s objects (chunk_ids=%s)",
             len(result.objects),
             chunk_ids,
         )
         for obj in result.objects:
-            chunk = chunks_by_id.get(obj.uuid)
+            obj_id = str(obj.uuid)
+            chunk = chunks_by_vector_or_pk.get(obj_id)
             if not chunk:
-                logger.debug("Skipping hit with missing chunk %s", obj.uuid)
+                logger.debug("Skipping hit with missing chunk %s", obj_id)
                 continue
             metadata = getattr(obj, "metadata", None)
             distance = getattr(metadata, "distance", None) if metadata else None
