@@ -159,12 +159,22 @@ function describeEvent(data: Record<string, unknown>): { title: string; descript
   }
 }
 
-function buildEntry(data: Record<string, unknown>): JobStreamEntry {
+interface CreateEntryOptions {
+  idPrefix?: string;
+  stableId?: string;
+  fallbackTimestamp?: string;
+}
+
+export function createJobStreamEntry(
+  data: Record<string, unknown>,
+  options: CreateEntryOptions = {},
+): JobStreamEntry {
   const { title, description } = describeEvent(data);
-  const timestamp = typeof data.timestamp === "string" ? data.timestamp : undefined;
-  const unique = Math.random().toString(36).slice(2);
+  const { idPrefix = "ws", stableId, fallbackTimestamp } = options;
+  const timestamp = typeof data.timestamp === "string" ? data.timestamp : fallbackTimestamp;
+  const unique = stableId ?? Math.random().toString(36).slice(2);
   return {
-    id: `${data.type ?? "event"}-${timestamp ?? Date.now()}-${unique}`,
+    id: `${idPrefix}-${data.type ?? "event"}-${unique}`,
     type: typeof data.type === "string" ? (data.type as string) : "event",
     timestamp,
     title,
@@ -246,7 +256,7 @@ export function useJobStream(jobId?: string | null): UseJobStreamResult {
             mutate(MATCHES_KEY);
           }
 
-          const entry = buildEntry(data);
+          const entry = createJobStreamEntry(data);
           setEvents((previous) => [entry, ...previous].slice(0, 50));
         } catch (err) {
           console.error("Failed to parse websocket message", err);

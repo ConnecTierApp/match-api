@@ -18,6 +18,7 @@ interface JobUpdatesFeedProps {
   events: JobStreamEntry[];
   connectionState: JobStreamConnectionState;
   error?: string | null;
+  isLoading?: boolean;
 }
 
 function formatTimestamp(timestamp?: string) {
@@ -59,20 +60,20 @@ function simplifyType(type: string) {
   return token.replace(/_/g, " ");
 }
 
-export function JobUpdatesFeed({ events, connectionState, error }: JobUpdatesFeedProps) {
+export function JobUpdatesFeed({ events, connectionState, error, isLoading = false }: JobUpdatesFeedProps) {
   const connectionLabel = formatConnectionState(connectionState);
+  const statusMessage = [connectionLabel, error].filter(Boolean).join(" — ");
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Realtime updates</CardTitle>
-        <CardDescription>
-          {connectionLabel}
-          {error ? ` — ${error}` : null}
-        </CardDescription>
+        {statusMessage ? <CardDescription>{statusMessage}</CardDescription> : null}
       </CardHeader>
       <CardContent>
-        {events.length === 0 ? (
+        {isLoading && events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Loading stored updates…</p>
+        ) : events.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No websocket messages yet. Updates will appear here as the job runs.
           </p>

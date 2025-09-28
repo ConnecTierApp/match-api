@@ -11,6 +11,7 @@ from .models import (
     MatchFeature,
     MatchingJob,
     MatchingJobTarget,
+    MatchingJobUpdate,
     MatchingTemplate,
     Workspace,
 )
@@ -209,6 +210,18 @@ class MatchingJobTargetSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class MatchingJobUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MatchingJobUpdate
+        fields = [
+            "id",
+            "event_type",
+            "payload",
+            "created_at",
+        ]
+        read_only_fields = fields
 
 
 class MatchSerializer(serializers.ModelSerializer):

@@ -7,8 +7,10 @@ from core.models import (
     DocumentChunk,
     Entity,
     EntityType,
-    MatchingSearchLog,
     MatchingJob,
+    MatchingJobRun,
+    MatchingJobUpdate,
+    MatchingSearchLog,
     MatchingTemplate,
     Workspace,
 )
@@ -17,6 +19,7 @@ from matching.evaluation import CriterionEvaluation, MatchRating, TargetEvaluati
 from matching.interfaces import VectorSearchHit
 from matching.planning import SearchCriterion, SearchPlan
 from matching.search import CriterionHit, TargetSearchSummary
+from matching.events import NullMatchingJobEventPublisher
 
 
 class MatchingJobAuditRecorderTests(TestCase):
@@ -128,3 +131,57 @@ class MatchingJobAuditRecorderTests(TestCase):
         detail = run.evaluations.first().details.first()
         self.assertEqual(detail.rating_name, MatchRating.GOOD.name)
         self.assertEqual(run.status, run.Status.COMPLETE)
+
+
+class MatchingJobEventPublisherTests(TestCase):
+    def setUp(self) -> None:
+        self.workspace = Workspace.objects.create(slug="updates", name="Updates")
+        self.entity_type = EntityType.objects.create(
+            workspace=self.workspace,
+            slug="company",
+            display_name="Company",
+        )
+        self.template = MatchingTemplate.objects.create(
+            workspace=self.workspace,
+            name="Template",
+            description="",
+            source_entity_type=self.entity_type,
+            target_entity_type=self.entity_type,
+            config={"search_criteria": [{"label": "Fit", "prompt": "Check fit"}]},
+        )
+        self.source_entity = Entity.objects.create(
+            workspace=self.workspace,
+            entity_type=self.entity_type,
+            name="Source",
+        )
+        self.job = MatchingJob.objects.create(
+            workspace=self.workspace,
+            template=self.template,
+            source_entity=self.source_entity,
+        )
+
+    def test_persists_status_event(self) -> None:
+        publisher = NullMatchingJobEventPublisher(job_id=str(self.job.id))
+        publisher.status_changed(status="queued")
+
+        self.assertEqual(self.job.updates.count(), 1)
+        update = self.job.updates.first()
+        self.assertIsInstance(update, MatchingJobUpdate)
+        self.assertEqual(update.event_type, "matching.job.status")
+        self.assertEqual(update.payload.get("status"), "queued")
+        self.assertIsNone(update.run)
+
+    def test_event_binds_to_run(self) -> None:
+        run = MatchingJobRun.objects.create(
+            matching_job=self.job,
+            matching_config_snapshot={},
+            plan_snapshot=[],
+        )
+
+        publisher = NullMatchingJobEventPublisher(job_id=str(self.job.id))
+        publisher.attach_run(run.id)
+        publisher.status_changed(status="running")
+
+        update = self.job.updates.order_by("-created_at").first()
+        self.assertEqual(update.run_id, run.id)
+        self.assertEqual(update.payload.get("status"), "running")

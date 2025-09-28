@@ -32,7 +32,7 @@ class OpenAIEmbeddingGenerator(EmbeddingGenerator):
 class OpenAILanguageModel(LanguageModel):
     """LLM interface backed by OpenAI's Responses API."""
 
-    def __init__(self, client: OpenAI | None = None, *, model: str = "gpt-4o-mini") -> None:
+    def __init__(self, client: OpenAI | None = None, *, model: str = "gpt-5") -> None:
         self._client = client or get_llm_client()
         self.model = model
 
@@ -110,9 +110,30 @@ class WeaviateVectorSearcher(VectorSearcher):
         for obj in result.objects:
             obj_id = str(obj.uuid)
             chunk = chunks_by_vector_or_pk.get(obj_id)
+
+            # Fallback: resolve by properties (document_id + chunk_index) if id mapping fails.
             if not chunk:
-                logger.debug("Skipping hit with missing chunk %s", obj_id)
-                continue
+                props = getattr(obj, "properties", None) or {}
+                doc_id = str(props.get("document_id") or "")
+                idx_val = props.get("chunk_index")
+                try:
+                    idx = int(idx_val) if idx_val is not None else None
+                except (TypeError, ValueError):
+                    idx = None
+                if doc_id and idx is not None:
+                    chunk = (
+                        DocumentChunk.objects.filter(document_id=doc_id, chunk_index=idx)
+                        .only("id", "text")
+                        .first()
+                    )
+                if not chunk:
+                    logger.debug(
+                        "Skipping hit with missing chunk %s (fallback props doc_id=%s idx=%s)",
+                        obj_id,
+                        doc_id or "",
+                        idx if idx is not None else "",
+                    )
+                    continue
             metadata = getattr(obj, "metadata", None)
             distance = getattr(metadata, "distance", None) if metadata else None
             score = float(distance) if distance is not None else 0.0
@@ -120,7 +141,10 @@ class WeaviateVectorSearcher(VectorSearcher):
                 VectorSearchHit(
                     chunk=chunk,
                     score=score,
-                    metadata={"distance": distance} if distance is not None else {},
+                    metadata={
+                        **({"distance": distance} if distance is not None else {}),
+                        "weaviate_uuid": obj_id,
+                    },
                 )
             )
 

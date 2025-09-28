@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/table";
 import { useJob } from "@/modules/jobs/hooks/use-job";
 import { useJobMutations } from "@/modules/jobs/hooks/use-job-mutations";
-import { useJobStream } from "@/modules/jobs/hooks/use-job-stream";
+import { useJobStream, createJobStreamEntry } from "@/modules/jobs/hooks/use-job-stream";
+import { useJobUpdates } from "@/modules/jobs/hooks/use-job-updates";
 import { useMatchesByJob } from "@/modules/matches/hooks/use-matches-by-job";
 import { useTemplate } from "@/modules/templates/hooks/use-template";
 
@@ -38,6 +39,7 @@ export default function JobDetailPage() {
   const { data: matches } = useMatchesByJob(job?.id);
   const { updateJob, deleteJob } = useJobMutations();
   const stream = useJobStream(params.jobId);
+  const { data: persistedUpdates, isLoading: isLoadingPersistedUpdates } = useJobUpdates(job?.id);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -59,6 +61,40 @@ export default function JobDetailPage() {
     : "secondary";
 
   const displayErrorMessage = stream.status?.errorMessage ?? job?.errorMessage;
+
+  const persistedEntries = useMemo(() => {
+    return (persistedUpdates ?? []).map((update) => {
+      const payload = (update.payload ?? {}) as Record<string, unknown>;
+      return createJobStreamEntry(payload, {
+        idPrefix: "db",
+        stableId: update.id,
+        fallbackTimestamp: update.created_at,
+      });
+    });
+  }, [persistedUpdates]);
+
+  const eventsForFeed = useMemo(() => {
+    const combined = [...persistedEntries, ...stream.events];
+    const seen = new Set<string>();
+    const parseTime = (value?: string) => {
+      if (!value) {
+        return 0;
+      }
+      const ms = Date.parse(value);
+      return Number.isNaN(ms) ? 0 : ms;
+    };
+
+    combined.sort((a, b) => parseTime(b.timestamp) - parseTime(a.timestamp));
+
+    return combined.filter((entry) => {
+      const key = `${entry.type}-${entry.timestamp ?? ""}-${entry.title}-${entry.description ?? ""}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [persistedEntries, stream.events]);
 
   const developerRequests = job
     ? [
@@ -231,9 +267,10 @@ export default function JobDetailPage() {
       </Card>
 
       <JobUpdatesFeed
-        events={stream.events}
+        events={eventsForFeed}
         connectionState={stream.connectionState}
         error={stream.error}
+        isLoading={isLoadingPersistedUpdates && eventsForFeed.length === 0}
       />
     </div>
   );

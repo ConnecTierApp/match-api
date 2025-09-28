@@ -9,7 +9,17 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from .admin import DocumentChunkAdmin
-from .models import Document, DocumentChunk, EntityType, MatchingJobTarget, Workspace
+from .models import (
+    Document,
+    DocumentChunk,
+    Entity,
+    EntityType,
+    MatchingJob,
+    MatchingJobTarget,
+    MatchingJobUpdate,
+    MatchingTemplate,
+    Workspace,
+)
 from .tasks import calculate_text_checksum
 
 
@@ -300,3 +310,36 @@ class CoreCrudFlowTests(APITestCase):
 
         mock_delay.assert_called_once_with(str(stale_chunk.id))
         chunk_admin.message_user.assert_called_once()
+
+    def test_job_updates_endpoint_returns_persisted_events(self):
+        source_entity = Entity.objects.create(
+            workspace=self.workspace,
+            entity_type=self.candidate_type,
+            name="Source entity",
+        )
+        template = MatchingTemplate.objects.create(
+            workspace=self.workspace,
+            name="Job Template",
+            description="",
+            source_entity_type=self.candidate_type,
+            target_entity_type=self.job_type,
+            config={"search_criteria": [{"label": "Fit", "prompt": "Check fit"}]},
+        )
+        job = MatchingJob.objects.create(
+            workspace=self.workspace,
+            template=template,
+            source_entity=source_entity,
+        )
+        update = MatchingJobUpdate.objects.create(
+            matching_job=job,
+            event_type="matching.job.status",
+            payload={"type": "matching.job.status", "status": "queued"},
+        )
+
+        response = self.client.get(reverse("core:matchingjob-updates", args=[job.id]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        payload = response.data[0]
+        self.assertEqual(payload["id"], str(update.id))
+        self.assertEqual(payload["event_type"], "matching.job.status")
+        self.assertEqual(payload["payload"].get("status"), "queued")

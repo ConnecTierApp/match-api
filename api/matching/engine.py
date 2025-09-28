@@ -65,6 +65,7 @@ def run_matching_job(
             "matching": ctx.matching_config.to_dict(),
         },
     )
+    active_publisher.attach_run(audit.run.id)
     logger.debug(
         "Search plan prepared with %s criteria: %s",
         len(plan.criteria),

@@ -136,8 +136,17 @@ class MatchPersistedEvent(MatchingJobEvent):
 class MatchingJobEventPublisher(abc.ABC):
     """Abstract publisher that exposes convenience helpers for domain events."""
 
-    def __init__(self, job_id: str):
+    def __init__(self, job_id: str, *, run_id: str | None = None):
         self.job_id = str(job_id)
+        self.run_id: str | None = str(run_id) if run_id else None
+
+    def attach_run(self, run: uuid.UUID | str | None) -> None:
+        """Bind the publisher to a specific run for auditing persisted updates."""
+
+        if run is None:
+            self.run_id = None
+            return
+        self.run_id = str(getattr(run, "id", run))
 
     # Public helper methods -------------------------------------------------
 
@@ -145,6 +154,7 @@ class MatchingJobEventPublisher(abc.ABC):
         if status not in {"queued", "running", "complete", "failed"}:  # pragma: no cover - guard
             raise ValueError(f"Unsupported job status '{status}'")
         event = StatusChangedEvent(job_id=self.job_id, status=status, error_message=error_message)
+        self._store_event(event)
         self._publish(event)
 
     def criteria_prepared(self, *, criteria: Iterable[Any]) -> None:
@@ -160,6 +170,7 @@ class MatchingJobEventPublisher(abc.ABC):
             for criterion in criteria
         ]
         event = CriteriaPreparedEvent(job_id=self.job_id, criteria=snapshots)
+        self._store_event(event)
         self._publish(event)
 
     def source_snippets_prepared(self, *, counts: dict[str, int]) -> None:
@@ -168,6 +179,7 @@ class MatchingJobEventPublisher(abc.ABC):
             for criterion_id, count in counts.items()
         ]
         event = SourceSnippetsPreparedEvent(job_id=self.job_id, snippets=snapshots)
+        self._store_event(event)
         self._publish(event)
 
     def target_search_completed(
@@ -188,6 +200,7 @@ class MatchingJobEventPublisher(abc.ABC):
             hits=hits,
         )
         event = TargetSearchCompletedEvent(job_id=self.job_id, target=snapshot)
+        self._store_event(event)
         self._publish(event)
 
     def target_evaluated(
@@ -216,6 +229,7 @@ class MatchingJobEventPublisher(abc.ABC):
             coverage=coverage,
             evaluations=snapshots,
         )
+        self._store_event(event)
         self._publish(event)
 
     def candidate_aggregated(
@@ -235,6 +249,7 @@ class MatchingJobEventPublisher(abc.ABC):
             search_hit_ratio=search_hit_ratio,
             summary_reason=summary_reason,
         )
+        self._store_event(event)
         self._publish(event)
 
     def match_persisted(
@@ -256,6 +271,7 @@ class MatchingJobEventPublisher(abc.ABC):
             score=score,
             search_hit_ratio=search_hit_ratio,
         )
+        self._store_event(event)
         self._publish(event)
 
     # Internal hook --------------------------------------------------------
@@ -263,6 +279,24 @@ class MatchingJobEventPublisher(abc.ABC):
     @abc.abstractmethod
     def _publish(self, event: MatchingJobEvent) -> None:
         """Emit the concrete event. Subclasses decide the transport."""
+
+    def _store_event(self, event: MatchingJobEvent) -> None:
+        """Persist the emitted event for later playback in the UI timeline."""
+
+        try:
+            from core.models import MatchingJobUpdate
+
+            MatchingJobUpdate.objects.create(
+                matching_job_id=self.job_id,
+                run_id=self.run_id,
+                event_type=event.type,
+                payload=event.model_dump(mode="json"),
+            )
+        except Exception:  # pragma: no cover - best-effort logging
+            logger.exception(
+                "Failed to persist matching job event",
+                extra={"job_id": self.job_id, "run_id": self.run_id, "event": event.type},
+            )
 
 
 class NullMatchingJobEventPublisher(MatchingJobEventPublisher):

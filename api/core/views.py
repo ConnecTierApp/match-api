@@ -3,7 +3,9 @@ import logging
 from django.db import transaction
 from django.http import JsonResponse
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 
 from .models import (
     Document,
@@ -14,6 +16,7 @@ from .models import (
     MatchFeature,
     MatchingJob,
     MatchingJobTarget,
+    MatchingJobUpdate,
     MatchingTemplate,
     Workspace,
 )
@@ -26,6 +29,7 @@ from .serializers import (
     MatchSerializer,
     MatchingJobSerializer,
     MatchingJobTargetSerializer,
+    MatchingJobUpdateSerializer,
     MatchingTemplateSerializer,
     WorkspaceSerializer,
 )
@@ -112,6 +116,19 @@ class MatchingJobViewSet(viewsets.ModelViewSet):
                 raise
 
             logger.debug("Job %s auto-populated %s targets", job.id, created_targets)
+
+    @action(detail=True, methods=["get"])
+    def updates(self, request, pk=None):
+        job = self.get_object()
+        try:
+            limit = int(request.query_params.get("limit", 50))
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            limit = 50
+        limit = max(1, min(limit, 200))
+
+        queryset = job.updates.order_by("-created_at")[:limit]
+        serializer = MatchingJobUpdateSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class MatchingJobTargetViewSet(viewsets.ModelViewSet):

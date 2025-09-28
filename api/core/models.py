@@ -401,6 +401,31 @@ class MatchingEvaluationDetailLog(BaseModel):
         return f"Evaluation detail {self.criterion_id} for evaluation {self.evaluation_id}"
 
 
+class MatchingJobUpdate(BaseModel):
+    """Timeline entry capturing realtime updates emitted during a job run."""
+
+    matching_job = models.ForeignKey(
+        MatchingJob,
+        related_name="updates",
+        on_delete=models.CASCADE,
+    )
+    run = models.ForeignKey(
+        MatchingJobRun,
+        related_name="updates",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    event_type = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Update {self.event_type} for job {self.matching_job_id}"
+
+
 class Match(BaseModel):
     """Result of matching a source entity to one target within a job."""
 

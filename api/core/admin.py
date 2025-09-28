@@ -16,6 +16,7 @@ from .models import (
     MatchingJob,
     MatchingJobRun,
     MatchingJobTarget,
+    MatchingJobUpdate,
     MatchingSearchHitLog,
     MatchingSearchLog,
     MatchingTemplate,
@@ -129,6 +130,20 @@ class MatchingEvaluationLogInline(admin.TabularInline):
     metadata_pretty.short_description = "Metadata"
 
 
+class MatchingJobUpdateInline(admin.TabularInline):
+    model = MatchingJobUpdate
+    extra = 0
+    can_delete = False
+    fields = ("event_type", "created_at", "payload_pretty")
+    readonly_fields = fields
+    ordering = ("-created_at",)
+
+    def payload_pretty(self, obj):
+        return _format_json(obj.payload)
+
+    payload_pretty.short_description = "Payload"
+
+
 @admin.register(Workspace)
 class WorkspaceAdmin(admin.ModelAdmin):
     list_display = ("slug", "name", "created_at", "updated_at")
@@ -219,7 +234,7 @@ class MatchingJobAdmin(admin.ModelAdmin):
     list_filter = ("status", "workspace", "created_at")
     search_fields = ("id", "template__name", "source_entity__name")
     list_select_related = ("workspace", "template", "source_entity")
-    inlines = [MatchingJobRunInline]
+    inlines = [MatchingJobRunInline, MatchingJobUpdateInline]
 
     def run_count(self, obj):
         return obj.runs.count()
